@@ -52,20 +52,6 @@
                         android:minHeight="48dp" />
 
                     <Switch
-                        android:id="@+id/task_md5sum"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:minHeight="48dp"
-                        android:text="@string/use_md5checksum" />
-
-                    <TextView
-                        android:id="@+id/task_md5_hint"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        android:text="@string/task_hint_md5checksum" />
-
-                    <Switch
                         android:id="@+id/task_wifionly"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"

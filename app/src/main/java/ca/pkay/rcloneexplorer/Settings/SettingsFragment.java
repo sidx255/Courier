@@ -22,6 +22,7 @@ public class SettingsFragment extends Fragment {
     public final static int LOOK_AND_FEEL_SETTINGS = 3;
     public final static int LOGGING_SETTINGS = 4;
     public final static int NOTIFICATION_SETTINGS = 5;
+    public final static int TRANSFER_PERFORMANCE_SETTINGS = 6;
     private OnSettingCategorySelectedListener clickListener;
 
     public interface OnSettingCategorySelectedListener {
@@ -80,6 +81,8 @@ public class SettingsFragment extends Fragment {
         view.findViewById(R.id.notification_settings).setOnClickListener(v -> clickListener.onSettingCategoryClicked(NOTIFICATION_SETTINGS));
 
         view.findViewById(R.id.file_access_settings).setOnClickListener(v -> clickListener.onSettingCategoryClicked(FILE_ACCESS_SETTINGS));
+
+        view.findViewById(R.id.transfer_performance_settings).setOnClickListener(v -> clickListener.onSettingCategoryClicked(TRANSFER_PERFORMANCE_SETTINGS));
 
         view.findViewById(R.id.importSettings).setOnClickListener(v -> startActivity(getImportIntent()));
         view.findViewById(R.id.exportSettings).setOnClickListener(v -> startActivity(getExportIntent()));

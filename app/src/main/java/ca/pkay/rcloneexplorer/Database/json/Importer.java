@@ -17,17 +17,27 @@ public class Importer {
 
 
     public static void importJson(String json, Context context) throws JSONException {
+        ArrayList<Trigger> triggers = createTriggerlist(json);
+        ArrayList<Filter> filters = createFilterList(json);
+        ArrayList<Task> tasks = createTasklist(json);
+
         DatabaseHandler dbHandler = new DatabaseHandler(context);
         dbHandler.deleteEveryting();
-        for(Trigger trigger : createTriggerlist(json)){
+        for(Trigger trigger : triggers){
             dbHandler.createTrigger(trigger, true);
         }
-        for(Filter filter : createFilterList(json)){
+        for(Filter filter : filters){
             dbHandler.createFilter(filter, true);
         }
-        for(Task task : createTasklist(json)){
+        for(Task task : tasks){
             dbHandler.createTask(task, true);
         }
+    }
+
+    public static void validateJson(String json) throws JSONException {
+        createTriggerlist(json);
+        createFilterList(json);
+        createTasklist(json);
     }
 
     public static ArrayList<Trigger> createTriggerlist(String content) throws JSONException {

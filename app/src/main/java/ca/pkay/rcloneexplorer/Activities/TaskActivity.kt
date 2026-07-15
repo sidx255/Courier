@@ -14,6 +14,7 @@ import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
 import androidx.appcompat.widget.Toolbar
@@ -49,7 +50,6 @@ class TaskActivity : AppCompatActivity(), FolderSelectorCallback{
     private lateinit var fab: FloatingActionButton
 
     private lateinit var switchWifi: Switch
-    private lateinit var switchMD5sum: Switch
 
 
     private lateinit var filterDropdown: Spinner
@@ -133,7 +133,6 @@ class TaskActivity : AppCompatActivity(), FolderSelectorCallback{
         onSuccessDropdown = findViewById(R.id.task_onSuccess_spinner)
         fab = findViewById(R.id.saveButton)
         switchWifi = findViewById(R.id.task_wifionly)
-        switchMD5sum = findViewById(R.id.task_md5sum)
 
         rcloneInstance = Rclone(this)
         dbHandler = DatabaseHandler(this)
@@ -174,7 +173,6 @@ class TaskActivity : AppCompatActivity(), FolderSelectorCallback{
 
         findViewById<TextView>(R.id.task_title_textfield).text = existingTask?.title
         switchWifi.isChecked = existingTask?.wifionly ?: false
-        switchMD5sum.isChecked = existingTask?.md5sum ?: false
         switchDeleteExcluded.isChecked = existingTask?.deleteExcluded ?: false
         prepareSyncDirectionDropdown()
         prepareLocal()
@@ -220,17 +218,39 @@ class TaskActivity : AppCompatActivity(), FolderSelectorCallback{
     private fun persistTaskChanges() {
         val updatedTask = getTaskValues(existingTask!!.id)
         if (updatedTask != null) {
-            dbHandler.updateTask(updatedTask)
-            finish()
+            confirmDestructiveTask(updatedTask) {
+                dbHandler.updateTask(updatedTask)
+                finish()
+            }
         }
     }
 
     private fun saveTask() {
         val newTask = getTaskValues(0)
         if (newTask != null) {
-            dbHandler.createTask(newTask)
-            finish()
+            confirmDestructiveTask(newTask) {
+                dbHandler.createTask(newTask)
+                finish()
+            }
         }
+    }
+
+    private fun confirmDestructiveTask(task: Task, save: () -> Unit) {
+        val destructive = task.direction == SyncDirectionObject.SYNC_LOCAL_TO_REMOTE ||
+                task.direction == SyncDirectionObject.SYNC_REMOTE_TO_LOCAL ||
+                task.direction == SyncDirectionObject.SYNC_BIDIRECTIONAL ||
+                task.direction == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL ||
+                task.deleteExcluded
+        if (!destructive) {
+            save()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.task_destructive_warning_title)
+            .setMessage(R.string.task_destructive_warning_message)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.task_save_destructive) { _, _ -> save() }
+            .show()
     }
 
     private fun getTaskValues(id: Long): Task? {
@@ -249,7 +269,7 @@ class TaskActivity : AppCompatActivity(), FolderSelectorCallback{
         taskToPopulate.direction = direction
 
         taskToPopulate.wifionly = switchWifi.isChecked
-        taskToPopulate.md5sum = switchMD5sum.isChecked
+        taskToPopulate.md5sum = false
         taskToPopulate.deleteExcluded = switchDeleteExcluded.isChecked
         taskToPopulate.filterId = if(filterDropdown.selectedItemPosition == 0 || filterDropdown.selectedItemPosition == -1) null else filterItems[filterDropdown.selectedItemPosition - 1].id
         taskToPopulate.onFailFollowup = (onFailDropdown.selectedItem as TaskNameIdPair).id
@@ -491,7 +511,8 @@ class TaskActivity : AppCompatActivity(), FolderSelectorCallback{
 
             override fun onNothingSelected(adapterView: AdapterView<*>?) {}
         }
-        syncDirection.setSelection((((existingTask?.direction?.minus(1)) ?: 0)) )
+        val selectedDirection = existingTask?.direction ?: SyncDirectionObject.COPY_LOCAL_TO_REMOTE
+        syncDirection.setSelection(selectedDirection - 1)
     }
 
     private fun updateSpinnerDescription(value: Int) {

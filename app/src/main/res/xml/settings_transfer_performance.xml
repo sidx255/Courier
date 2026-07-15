@@ -1,0 +1,47 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="@string/pref_category_parallelism">
+        <EditTextPreference
+            android:defaultValue="4"
+            android:key="@string/pref_key_transfers"
+            android:title="@string/pref_transfers_title"
+            app:summary="@string/pref_transfers_summary" />
+
+        <EditTextPreference
+            android:defaultValue="8"
+            android:key="@string/pref_key_checkers"
+            android:title="@string/pref_checkers_title"
+            app:summary="@string/pref_checkers_summary" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/pref_category_multithread">
+        <EditTextPreference
+            android:defaultValue="4"
+            android:key="@string/pref_key_multithread_streams"
+            android:title="@string/pref_multithread_streams_title"
+            app:summary="@string/pref_multithread_streams_summary" />
+
+        <EditTextPreference
+            android:defaultValue="64"
+            android:key="@string/pref_key_multithread_cutoff"
+            android:title="@string/pref_multithread_cutoff_title"
+            app:summary="@string/pref_multithread_cutoff_summary" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/pref_category_memory">
+        <EditTextPreference
+            android:defaultValue="16"
+            android:key="@string/pref_key_buffer_size"
+            android:title="@string/pref_buffer_size_title"
+            app:summary="@string/pref_buffer_size_summary" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="@string/pref_key_use_mmap"
+            android:title="@string/pref_use_mmap_title"
+            app:summary="@string/pref_use_mmap_summary" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

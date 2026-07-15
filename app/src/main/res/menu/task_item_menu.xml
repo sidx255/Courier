@@ -5,6 +5,14 @@
         android:icon="@drawable/ic_cloud_download_black_24dp"
         android:title="@string/start_task" />
     <item
+        android:id="@+id/action_verify_task"
+        android:icon="@drawable/ic_check"
+        android:title="@string/task_verify_contents" />
+    <item
+        android:id="@+id/action_repair_task"
+        android:icon="@drawable/ic_refresh"
+        android:title="@string/task_repair_differences" />
+    <item
         android:id="@+id/action_edit_task"
         android:icon="@drawable/ic_edit_black"
         android:title="@string/edit" />

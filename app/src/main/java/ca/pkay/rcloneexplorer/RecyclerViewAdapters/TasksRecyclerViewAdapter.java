@@ -37,6 +37,7 @@ import ca.pkay.rcloneexplorer.Items.SyncDirectionObject;
 import ca.pkay.rcloneexplorer.Items.Task;
 import ca.pkay.rcloneexplorer.R;
 import ca.pkay.rcloneexplorer.workmanager.SyncManager;
+import ca.pkay.rcloneexplorer.workmanager.SyncOperation;
 import es.dmoral.toasty.Toasty;
 
 public class TasksRecyclerViewAdapter extends RecyclerView.Adapter<TasksRecyclerViewAdapter.ViewHolder>{
@@ -132,7 +133,7 @@ public class TasksRecyclerViewAdapter extends RecyclerView.Adapter<TasksRecycler
 
     private void startTask(Task task){
         SyncManager sm = new SyncManager(context);
-        sm.queue(task);
+        sm.queueNow(task);
     }
 
     private void editTask(Task task) {
@@ -171,6 +172,12 @@ public class TasksRecyclerViewAdapter extends RecyclerView.Adapter<TasksRecycler
             switch (item.getItemId()) {
                 case R.id.action_start_task:
                     startTask(task);
+                    break;
+                case R.id.action_verify_task:
+                    new SyncManager(context).queue(task, SyncOperation.VERIFY);
+                    break;
+                case R.id.action_repair_task:
+                    new SyncManager(context).queue(task, SyncOperation.REPAIR);
                     break;
                 case R.id.action_edit_task:
                     editTask(task);

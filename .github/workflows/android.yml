@@ -1,5 +1,8 @@
 name: Android CI
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
   push:
@@ -12,7 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Read Go version from project
-      run: echo "GO_VERSION=$(grep -E "^de\.felixnuesse\.extract\.goVersion=" gradle.properties | cut -d'=' -f2)"
+      run: echo "GO_VERSION=$(grep -E '^de\.felixnuesse\.extract\.goVersion=' gradle.properties | cut -d'=' -f2)" >> "$GITHUB_ENV"
     - name: Set up JDK 17
       uses: actions/setup-java@v3
       with:
@@ -30,31 +33,53 @@ jobs:
       run: |
         NDK_VERSION="$(grep -E "^de\.felixnuesse\.extract\.ndkVersion=" gradle.properties | cut -d'=' -f2)"
         sdkmanager "ndk;${NDK_VERSION}"
-    - name: Build app
-      run: ./gradlew assembleOssDebug
+    - name: Restore Courier signing key
+      env:
+        COURIER_KEYSTORE_BASE64: ${{ secrets.COURIER_KEYSTORE_BASE64 }}
+        COURIER_STORE_PASSWORD: ${{ secrets.COURIER_STORE_PASSWORD }}
+        COURIER_KEY_ALIAS: ${{ secrets.COURIER_KEY_ALIAS }}
+        COURIER_KEY_PASSWORD: ${{ secrets.COURIER_KEY_PASSWORD }}
+      run: |
+        test -n "$COURIER_KEYSTORE_BASE64"
+        test -n "$COURIER_STORE_PASSWORD"
+        test -n "$COURIER_KEY_ALIAS"
+        test -n "$COURIER_KEY_PASSWORD"
+        echo "$COURIER_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/courier-release.p12"
+    - name: Build signed Courier release
+      env:
+        COURIER_KEYSTORE: ${{ runner.temp }}/courier-release.p12
+        COURIER_STORE_PASSWORD: ${{ secrets.COURIER_STORE_PASSWORD }}
+        COURIER_KEY_ALIAS: ${{ secrets.COURIER_KEY_ALIAS }}
+        COURIER_KEY_PASSWORD: ${{ secrets.COURIER_KEY_PASSWORD }}
+      run: ./gradlew assembleOssRelease
     - name: Upload APK (arm)
       uses: actions/upload-artifact@v4
       with:
-        name: nightly-armeabi.apk
-        path: ${{ github.workspace }}/app/build/outputs/apk/oss/debug/*-oss-armeabi-v7a-debug.apk
+        name: courier-armeabi
+        path: ${{ github.workspace }}/app/build/outputs/apk/oss/release/*-oss-armeabi-v7a-release.apk
     - name: Upload APK (arm64)
       uses: actions/upload-artifact@v4
       with:
-        name: nightly-arm64.apk
-        path: ${{ github.workspace }}/app/build/outputs/apk/oss/debug/*-oss-arm64-v8a-debug.apk
+        name: courier-arm64
+        path: ${{ github.workspace }}/app/build/outputs/apk/oss/release/*-oss-arm64-v8a-release.apk
     - name: Upload APK (x86)
       uses: actions/upload-artifact@v4
       with:
-        name: nightly-x86.apk
-        path: ${{ github.workspace }}/app/build/outputs/apk/oss/debug/*-oss-x86-debug.apk
+        name: courier-x86
+        path: ${{ github.workspace }}/app/build/outputs/apk/oss/release/*-oss-x86-release.apk
     - name: Upload APK (arm)
       uses: actions/upload-artifact@v4
       with:
-        name: nightly-x64.apk
-        path: ${{ github.workspace }}/app/build/outputs/apk/oss/debug/*-oss-x86_64-debug.apk
+        name: courier-x64
+        path: ${{ github.workspace }}/app/build/outputs/apk/oss/release/*-oss-x86_64-release.apk
     - name: Upload APK (universal)
       uses: actions/upload-artifact@v4
       with:
-        name: nightly-universal.apk
-        path: ${{ github.workspace }}/app/build/outputs/apk/oss/debug/*-oss-universal-debug.apk
+        name: courier-universal
+        path: ${{ github.workspace }}/app/build/outputs/apk/oss/release/*-oss-universal-release.apk
         retention-days: 14
+    - name: Publish signed APKs to GitHub release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: app/build/outputs/apk/oss/release/*-release.apk

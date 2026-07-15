@@ -687,28 +687,33 @@ public class MainActivity extends AppCompatActivity
             String mime = resolver.getType(uris[0]);
 
             if(mime.equals("application/zip")) {
+                String databaseJson;
+                String preferencesJson;
                 try {
-                    boolean validRclone = rclone.copyConfigFileFromZip(uris[0]);
+                    databaseJson = rclone.readDatabaseJson(uris[0]);
+                    Importer.validateJson(databaseJson);
+                    preferencesJson = rclone.readSharedPrefs(uris[0]);
+                    SharedPreferencesBackup.validateJson(preferencesJson);
+                    boolean validRclone = rclone.validateConfigFileFromZip(uris[0]);
                     if(!validRclone) {
                         statusCode = FAILURE_ZIP_INVALID_CONF;
                         return false;
                     }
-                    statusCode = SUCCESS_IMPORT;
-                } catch (Exception e) {
-                    statusCode = FAILURE_ZIP_MISSING_CONF;
-                    return false;
-                }
-
-                try {
-                    String json = rclone.readDatabaseJson(uris[0]);
-                    Importer.importJson(json, context);
-                    json = rclone.readSharedPrefs(uris[0]);
-                    SharedPreferencesBackup.importJson(json, context);
                 } catch (JSONException e) {
                     statusCode = FAILURE_ZIP_INVALID_JSON;
                     return false;
                 } catch (Exception e) {
                     statusCode = FAILURE_ZIP_NO_JSON;
+                    return false;
+                }
+
+                try {
+                    rclone.copyConfigFileFromZip(uris[0]);
+                    Importer.importJson(databaseJson, context);
+                    SharedPreferencesBackup.importJson(preferencesJson, context);
+                    statusCode = SUCCESS_IMPORT;
+                } catch (Exception e) {
+                    statusCode = FAILURE_UNSPECIFIED;
                     return false;
                 }
                 return true;
@@ -763,6 +768,8 @@ public class MainActivity extends AppCompatActivity
             editor.remove(getString(R.string.shared_preferences_hidden_remotes));
             editor.remove(getString(R.string.pref_key_accessible_storage_locations));
             editor.apply();
+
+            new TriggerService(context).queueTrigger();
 
             if (rclone.isConfigEncrypted()) {
                 pinRemotesToDrawer(); // this will clear any previous pinned remotes

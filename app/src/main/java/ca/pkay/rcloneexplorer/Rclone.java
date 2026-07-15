@@ -185,6 +185,21 @@ public class Rclone {
         // ref: https://github.com/rclone/rclone/issues/2446
         environmentValues.add("RCLONE_LOCAL_NO_SET_MODTIME=true");
 
+        environmentValues.add("RCLONE_TRANSFERS=" + prefInt(pref, R.string.pref_key_transfers, 4, 1, 32));
+        environmentValues.add("RCLONE_CHECKERS=" + prefInt(pref, R.string.pref_key_checkers, 8, 1, 64));
+        environmentValues.add("RCLONE_INPLACE=false");
+        environmentValues.add("RCLONE_PARTIAL_SUFFIX=.courier-partial");
+        environmentValues.add("RCLONE_MULTI_THREAD_STREAMS=" + prefInt(pref, R.string.pref_key_multithread_streams, 4, 0, 16));
+        environmentValues.add("RCLONE_MULTI_THREAD_CUTOFF=" + prefInt(pref, R.string.pref_key_multithread_cutoff, 64, 1, 10240) + "M");
+        environmentValues.add("RCLONE_BUFFER_SIZE=" + prefInt(pref, R.string.pref_key_buffer_size, 16, 0, 1024) + "M");
+        environmentValues.add("RCLONE_USE_MMAP=" + pref.getBoolean(context.getString(R.string.pref_key_use_mmap), true));
+
+        environmentValues.add("RCLONE_RETRIES=3");
+        environmentValues.add("RCLONE_RETRIES_SLEEP=5s");
+        environmentValues.add("RCLONE_LOW_LEVEL_RETRIES=10");
+        environmentValues.add("RCLONE_TIMEOUT=10m");
+        environmentValues.add("RCLONE_CONTIMEOUT=2m");
+
         // Allow the caller to overwrite any option for special cases
         Iterator<String> envVarIter = environmentValues.iterator();
         while(envVarIter.hasNext()){
@@ -198,6 +213,21 @@ public class Rclone {
             }
         }
         return environmentValues.toArray(new String[0]);
+    }
+
+    private int prefInt(SharedPreferences pref, int keyRes, int def, int min, int max) {
+        int value = def;
+        try {
+            String raw = pref.getString(context.getString(keyRes), Integer.toString(def));
+            if (raw != null && !raw.trim().isEmpty()) {
+                value = Integer.parseInt(raw.trim());
+            }
+        } catch (NumberFormatException | ClassCastException e) {
+            value = def;
+        }
+        if (value < min) value = min;
+        if (value > max) value = max;
+        return value;
     }
 
     public void logErrorOutput(Process process) {
@@ -684,16 +714,11 @@ public class Rclone {
 
     public Process sync(RemoteItem remoteItem, String localPath, String remotePath, int syncDirection, boolean useMD5Sum, ArrayList<FilterEntry> filters, boolean deleteExcluded) {
         String[] command;
-        String remoteName = remoteItem.getName();
-        String localRemotePath = (remoteItem.isRemoteType(RemoteItem.LOCAL)) ? getLocalRemotePathPrefix(remoteItem, context)  + "/" : "";
-        String remoteSection = (remotePath.compareTo("//" + remoteName) == 0) ? remoteName + ":" + localRemotePath : remoteName + ":" + localRemotePath + remotePath;
+        String remoteSection = getRemoteSection(remoteItem, remotePath);
 
-        ArrayList<String> defaultParameter = new ArrayList<>(Arrays.asList("--transfers", "1", "--stats=1s", "--stats-log-level", "NOTICE", "--use-json-log"));
+        ArrayList<String> defaultParameter = new ArrayList<>(Arrays.asList("--stats=1s", "--stats-log-level", "NOTICE", "--use-json-log"));
         ArrayList<String> directionParameter = new ArrayList<>();
 
-        if(useMD5Sum){
-            defaultParameter.add("--checksum");
-        }
         if(deleteExcluded){
             defaultParameter.add("--delete-excluded");
         }
@@ -732,6 +757,111 @@ public class Rclone {
         }
     }
 
+    private String getRemoteSection(RemoteItem remoteItem, String remotePath) {
+        String remoteName = remoteItem.getName();
+        String localRemotePath = remoteItem.isRemoteType(RemoteItem.LOCAL)
+                ? getLocalRemotePathPrefix(remoteItem, context) + "/"
+                : "";
+        return remotePath.compareTo("//" + remoteName) == 0
+                ? remoteName + ":" + localRemotePath
+                : remoteName + ":" + localRemotePath + remotePath;
+    }
+
+    private void addFilters(ArrayList<String> parameters, ArrayList<FilterEntry> filters) {
+        for (FilterEntry filter : filters) {
+            parameters.add("--filter");
+            parameters.add((filter.filterType == FilterEntry.FILTER_INCLUDE ? "+ " : "- ") + filter.filter);
+        }
+    }
+
+    public Process cleanupCourierPartials(RemoteItem remoteItem, String remotePath) {
+        String[] command = createCommandWithOptions(
+                "delete",
+                getRemoteSection(remoteItem, remotePath),
+                "--include", "**/*.courier-partial",
+                "--min-age", "24h"
+        );
+        try {
+            return getRuntimeProcess(command, getRcloneEnv());
+        } catch (IOException e) {
+            FLog.e(TAG, "cleanupCourierPartials: error starting rclone", e);
+            return null;
+        }
+    }
+
+    public Process verify(
+            RemoteItem remoteItem,
+            String localPath,
+            String remotePath,
+            int syncDirection,
+            ArrayList<FilterEntry> filters,
+            String combinedReportPath
+    ) {
+        String remoteSection = getRemoteSection(remoteItem, remotePath);
+        ArrayList<String> parameters = new ArrayList<>();
+        parameters.add("check");
+        if (syncDirection == SyncDirectionObject.SYNC_LOCAL_TO_REMOTE ||
+                syncDirection == SyncDirectionObject.COPY_LOCAL_TO_REMOTE) {
+            parameters.add(localPath);
+            parameters.add(remoteSection);
+        } else if (syncDirection == SyncDirectionObject.SYNC_REMOTE_TO_LOCAL ||
+                syncDirection == SyncDirectionObject.COPY_REMOTE_TO_LOCAL) {
+            parameters.add(remoteSection);
+            parameters.add(localPath);
+        } else {
+            return null;
+        }
+        Collections.addAll(parameters,
+                "--download",
+                "--one-way",
+                "--combined", combinedReportPath,
+                "--stats=1s",
+                "--stats-log-level", "NOTICE",
+                "--use-json-log");
+        addFilters(parameters, filters);
+        try {
+            return getRuntimeProcess(createCommandWithOptions(parameters), getRcloneEnv());
+        } catch (IOException e) {
+            FLog.e(TAG, "verify: error starting rclone", e);
+            return null;
+        }
+    }
+
+    public Process repair(
+            RemoteItem remoteItem,
+            String localPath,
+            String remotePath,
+            int syncDirection,
+            String filesFromPath
+    ) {
+        String remoteSection = getRemoteSection(remoteItem, remotePath);
+        ArrayList<String> parameters = new ArrayList<>();
+        parameters.add("copy");
+        if (syncDirection == SyncDirectionObject.SYNC_LOCAL_TO_REMOTE ||
+                syncDirection == SyncDirectionObject.COPY_LOCAL_TO_REMOTE) {
+            parameters.add(localPath);
+            parameters.add(remoteSection);
+        } else if (syncDirection == SyncDirectionObject.SYNC_REMOTE_TO_LOCAL ||
+                syncDirection == SyncDirectionObject.COPY_REMOTE_TO_LOCAL) {
+            parameters.add(remoteSection);
+            parameters.add(localPath);
+        } else {
+            return null;
+        }
+        Collections.addAll(parameters,
+                "--files-from", filesFromPath,
+                "--ignore-times",
+                "--stats=1s",
+                "--stats-log-level", "NOTICE",
+                "--use-json-log");
+        try {
+            return getRuntimeProcess(createCommandWithOptions(parameters), getRcloneEnv());
+        } catch (IOException e) {
+            FLog.e(TAG, "repair: error starting rclone", e);
+            return null;
+        }
+    }
+
     public Process downloadFile(RemoteItem remote, FileItem downloadItem, String downloadPath) {
         String[] command;
         String remoteFilePath;
@@ -751,7 +881,7 @@ public class Rclone {
 
         localFilePath = encodePath(localFilePath);
 
-        command = createCommandWithOptions("copy", remoteFilePath, localFilePath, "--transfers", "1", "--stats=1s", "--stats-log-level", "NOTICE", "--use-json-log");
+        command = createCommandWithOptions("copy", remoteFilePath, localFilePath, "--stats=1s", "--stats-log-level", "NOTICE", "--use-json-log");
 
         String[] env = getRcloneEnv();
         try {
@@ -783,7 +913,7 @@ public class Rclone {
             path = (uploadPath.compareTo("//" + remoteName) == 0) ? remoteName + ":" + localRemotePath : remoteName + ":" + localRemotePath + uploadPath;
         }
 
-        command = createCommandWithOptions("copy", uploadFile, path, "--transfers", "1", "--stats=1s", "--stats-log-level", "NOTICE", "--use-json-log");
+        command = createCommandWithOptions("copy", uploadFile, path, "--stats=1s", "--stats-log-level", "NOTICE", "--use-json-log");
 
         String[] env = getRcloneEnv();
         try {
@@ -1362,6 +1492,17 @@ public class Rclone {
         return false;
     }
 
+    public boolean validateConfigFileFromZip(Uri uri) throws Exception {
+        File tempFile = new File(context.getFilesDir().getPath(), "rclone.conf-validate");
+        File extracted = getFileFromZip(uri, "rclone.conf", tempFile);
+        if (extracted == null) {
+            return false;
+        }
+        boolean valid = isValidConfig(extracted.getAbsolutePath());
+        extracted.delete();
+        return valid;
+    }
+
 
     /***
      * This function replaces the config by replacing rclone.conf.
@@ -1458,7 +1599,7 @@ public class Rclone {
             zos.closeEntry();
         }
         catch (Exception e) {
-            // unable to write zip
+            throw new IOException("Unable to export Courier configuration", e);
         }
         finally {
             zos.close();

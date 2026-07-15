@@ -1,14 +1,13 @@
 package ca.pkay.rcloneexplorer.workmanager
 
 import android.app.Notification
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Parcel
+import android.os.PowerManager
 import androidx.annotation.StringRes
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.preference.PreferenceManager
@@ -38,6 +37,7 @@ import android.util.Log
 import de.felixnuesse.extract.notifications.implementations.DeleteWorkerNotification
 import de.felixnuesse.extract.notifications.implementations.MoveWorkerNotification
 import de.felixnuesse.extract.notifications.implementations.UploadWorkerNotification
+import java.util.concurrent.TimeUnit
 
 
 class EphemeralWorker (private var mContext: Context, workerParams: WorkerParameters): Worker(mContext, workerParams) {
@@ -73,39 +73,42 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
 
     // States
     private val sIsLoggingEnabled = mPreferences.getBoolean(getString(R.string.pref_key_logs), false)
-    private var sConnectivityChanged = false
-
     private var sRcloneProcess: Process? = null
     private val statusObject = StatusObject(mContext)
     private var failureReason = FAILURE_REASON.NO_FAILURE
     private var endNotificationAlreadyPosted = false
     private var silentRun = false
     private val ongoingNotificationID = Random.nextInt()
+    private var mWakeLock: PowerManager.WakeLock? = null
+    private var mWifiLock: WifiManager.WifiLock? = null
 
 
     private var mTitle: String = mNotificationManager?.initialTitle ?: ""
 
     override fun doWork(): Result {
+        if (!TransferRuntime.executionLock.tryLock()) {
+            return Result.retry()
+        }
+        try {
+            acquireWakeLocks()
+            if (inputData.keyValueMap.containsKey(EPHEMERAL_TYPE)){
+                val type = Type.valueOf(inputData.getString(EPHEMERAL_TYPE) ?: "")
+                mNotificationManager = prepareNotificationManager(type)
+                mTitle = mNotificationManager?.initialTitle ?: ""
 
-        registerBroadcastReceivers()
+                updateForegroundNotification(mNotificationManager?.updateNotification(
+                    mTitle,
+                    mTitle,
+                    ArrayList(),
+                    0,
+                    ongoingNotificationID
+                ))
 
-        updateForegroundNotification(mNotificationManager?.updateNotification(
-            mTitle,
-            mTitle,
-            ArrayList(),
-            0,
-            ongoingNotificationID
-        ))
-
-        if (inputData.keyValueMap.containsKey(EPHEMERAL_TYPE)){
-            val type = Type.valueOf(inputData.getString(EPHEMERAL_TYPE) ?: "")
-            mNotificationManager = prepareNotificationManager(type)
-
-            val remoteItem = getRemoteitemFromParcel(REMOTE)
-            if(remoteItem == null){
-                log("$REMOTE: No valid remote was passed!")
-                return Result.failure()
-            }
+                val remoteItem = getRemoteitemFromParcel(REMOTE)
+                if(remoteItem == null){
+                    log("$REMOTE: No valid remote was passed!")
+                    return Result.failure()
+                }
 
             mNotificationManager?.setCancelId(id)
             if(preconditionsMet()) {
@@ -173,12 +176,15 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
                 return Result.failure()
             }
 
-            postSync()
-            // Indicate whether the work finished successfully with the Result
-            return Result.success()
+                postSync()
+                return if (failureReason == FAILURE_REASON.NO_FAILURE) Result.success() else Result.failure()
+            }
+            log("Critical: No valid ephemeral type passed!")
+            return Result.failure()
+        } finally {
+            releaseWakeLocks()
+            TransferRuntime.executionLock.unlock()
         }
-        log("Critical: No valid ephemeral type passed!")
-        return Result.failure()
     }
 
     override fun onStopped() {
@@ -186,13 +192,33 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
         SyncLog.info(mContext, mTitle, mContext.getString(R.string.operation_sync_cancelled))
         SyncLog.info(mContext, mTitle, statusObject.toString())
         failureReason = FAILURE_REASON.CANCELLED
-        finishWork()
+        TransferRuntime.terminateGracefully(sRcloneProcess)
+        postSync()
     }
 
     private fun finishWork() {
-        sRcloneProcess?.destroy()
-        mContext.unregisterReceiver(connectivityChangeBroadcastReceiver)
+        TransferRuntime.terminateGracefully(sRcloneProcess)
         postSync()
+    }
+
+    private fun acquireWakeLocks() {
+        val powerManager = mContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+        mWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "EphemeralWorker::transfer").apply {
+            setReferenceCounted(false)
+            acquire(TimeUnit.HOURS.toMillis(6))
+        }
+        val wifiManager = mContext.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        mWifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "EphemeralWorker::wifi").apply {
+            setReferenceCounted(false)
+            acquire()
+        }
+    }
+
+    private fun releaseWakeLocks() {
+        mWakeLock?.let { if (it.isHeld) it.release() }
+        mWifiLock?.let { if (it.isHeld) it.release() }
+        mWakeLock = null
+        mWifiLock = null
     }
 
     fun prepareNotificationManager(type: Type): WorkerNotification {
@@ -222,6 +248,8 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
                             statusObject.parseLoglineToStatusObject(logline)
                         } else if (logline.getString("level") == "warning") {
                             statusObject.parseLoglineToStatusObject(logline)
+                        } else if (logline.has("stats")) {
+                            statusObject.parseLoglineToStatusObject(logline)
                         }
 
                         updateForegroundNotification(mNotificationManager?.updateNotification(
@@ -242,7 +270,10 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
                 FLog.e(tag(), "onHandleIntent: error reading stdout", e)
             }
             try {
-                localProcessReference.waitFor()
+                val exitCode = localProcessReference.waitFor()
+                if (exitCode != 0 && failureReason == FAILURE_REASON.NO_FAILURE) {
+                    failureReason = FAILURE_REASON.RCLONE_ERROR
+                }
             } catch (e: InterruptedException) {
                 FLog.e(tag(), "onHandleIntent: error waiting for process", e)
             }
@@ -398,23 +429,6 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
             mContext.getString(resId)
         }
     }
-
-    private fun registerBroadcastReceivers() {
-        val intentFilter = IntentFilter()
-        intentFilter.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION)
-        mContext.registerReceiver(connectivityChangeBroadcastReceiver, intentFilter)
-    }
-
-    private val connectivityChangeBroadcastReceiver: BroadcastReceiver =
-        object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                if(endNotificationAlreadyPosted){
-                    return
-                }
-                sConnectivityChanged = true
-                failureReason = FAILURE_REASON.CONNECTIVITY_CHANGED
-            }
-        }
 
     private fun getFileitemFromParcel(key: String): FileItem {
 

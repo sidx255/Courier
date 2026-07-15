@@ -1,11 +1,14 @@
-# Round Sync - Rclone for Android
+# Courier - Reliable rclone transfers for Android
+
+Courier is maintained by [sidx255](https://github.com/sidx255). It focuses on resilient, high-performance, integrity-verified phone-to-NAS and cloud data migrations.
+
+Courier is a fork of [Round Sync](https://github.com/newhinton/Round-Sync), which itself builds on RCX and rclone. Upstream authors, maintainers, contributors, and license notices remain credited in this repository and in the app.
 [![license: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/newhinton/Round-Sync/blob/master/LICENSE) [![Latest Downloads](https://img.shields.io/github/downloads/newhinton/round-sync/latest/total
 )](https://github.com/newhinton/Round-Sync/releases) [![GitHub release](https://img.shields.io/github/v/release/newhinton/Round-Sync?include_prereleases)](https://github.com/newhinton/Round-Sync/releases/latest) [![F-Droid](https://img.shields.io/f-droid/v/de.felixnuesse.extract?logo=fdroid&logoColor=white)](https://f-droid.org/packages/de.felixnuesse.extract/) [![IzzyOnDroid](https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/api/v1/shield/de.felixnuesse.extract&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAA4VBMVEXn9cuv7wDB9iGp4x2k5gKh3B6k3SyAxAGd4ASo6gCv5SCW2gHA7UTB6V+EwiOw3lK36zC+422d1yO78SWs3kfR7JhQiw2751G7+QCz8gCKzgGq3zay5DSm2jrF9jZLfwmNyiC77zXO7oaYzjW37CLj9Lze8LLA43uz3mK19ACR1QBcnRO78R6ExBek1kbE8FLI6nSPu0jH5YJxtQ2b1RiAmz53uwF7pitZkAeX1w7I72TY8KTO8HXD7La+0pKizWBzhExqjytpmR+UzSTA5Ctzy3uv1nOv3gyF3UuCsDRHcEx7M2pHAAAAS3RSTlP//////////////////////////////////////////////////////////////////////////////////////////////////wDLGfCsAAAB9ElEQVRIx72W53biMBCFhY0L7g0bTAktQEwgdMhuerbO+z/Q2sBiY0uKcvacnX8a3Y/R8YyuQPDJQP8KoExcro6ZC6C4TQXQx/oLABV3cfozgBgL/AWY9ScAsR7oBCD2AmSAoD8A+J3cWYECdBEaVm2z+U1hAuDx4fr6a08PGuuf6cmys5QvMEz0c12zhPWaAYBq9emp9/DlTrMUXsBOaw5Yjl5elrG+u9tYAxbAtjeL+Z3Wdl83Ovfr3BQyYAZBoLXbHDfQ2hykTSEAAIu+2LRcl4tD6UCm67jPCvD4/ON5YRhGpzOdrlar74fT5IcvOxDD0Xg0nvU7hjGVttv+0vYyAgyQdNgeey3Hce5DSZqN9GZmvzh8UO0F3thsiY4gqGoUtuL2AeaKpom5brVMryEKvCyXZVX0urd0wOxy4qwh8jxfLlcqZafpYoH0MzQGnNI/6CulOASFc/NWlZ17ADEG3oWjvn5TEvjbfJuyrnFaSfdyrK/f1Gp1tTAHF750aqgUJUCsr5UizFUv3EeQwmOFekmVmABDCiNVlqNwOwEqcM75vp+s/asrKpAmdxM/Gbnfuz0j8OYnPw2v9AqZ5Nt+f7hikwkw2T3Fc2l2jzdcst3DpwGCnvQ+EPUEu8c/STSAqMfZPeX5IQK0J+a//zn5MP4Am7ISN/4mSV8AAAAASUVORK5CYII=)](https://apt.izzysoft.de/packages/de.felixnuesse.extract)
 [![Documentation](https://img.shields.io/badge/Documentation-roundsync.com-4aad4e)](https://roundsync.com) [![supportive flags](https://img.shields.io/badge/support-🇺🇦_🏳️‍⚧_🏳️‍🌈-4aad4e)](https://roundsync.com)
 [![Android Lint](https://github.com/newhinton/Round-Sync/actions/workflows/lint.yml/badge.svg)](https://github.com/newhinton/Round-Sync/actions/workflows/lint.yml)
 
-A cloud file manager, powered by rclone.
-Visit [https://roundsync.com](https://roundsync.com) for more information!
+A resilient cloud/NAS file manager and migration tool, powered by rclone.
 
 
 ## Screenshots
@@ -43,7 +46,7 @@ Visit [https://roundsync.com](https://roundsync.com) for more information!
 
 ## Installation
 
-Grab the [latest version](https://github.com/newhinton/Round-Sync/releases/latest) of the signed APK and install it on your phone.
+Grab the [latest Courier release](https://github.com/sidx255/Courier/releases/latest) and install the signed APK.
 | CPU architecture | Where to find | APK identifier |
 |:---|:--|:---:|
 |ARM 32 Bit | older devices | ```armeabi-v7a``` |
@@ -51,7 +54,22 @@ Grab the [latest version](https://github.com/newhinton/Round-Sync/releases/lates
 |Intel/AMD 32 Bit | some TV boxes and tablets | ```x86``` |
 |Intel/AMD 64 Bit | some emulators | ```x86_64``` |
 
-If you don't know which version to pick use ```roundsync-<version>-universal-release.apk```. Most devices run ARM 64 Bit, and 64 Bit devices often can also run the respective 32 bit version at lower performance. The app runs on any phone, tablet or TV with Android 7 or newer, as long as you have a touchscreen or mouse.
+If you don't know which version to pick, use `courier_<version>-oss-universal-release.apk`. Most phones, including the Samsung Z Flip 6, use `arm64-v8a`.
+
+### Migrating from an older Courier package
+
+The permanent Android package is `com.sidx255.courier`. Android cannot move private app data across package IDs automatically.
+
+1. In the older Courier installation, use Settings -> Export and save the configuration ZIP.
+2. Install the signed `com.sidx255.courier` APK.
+3. Import that ZIP. It restores `rclone.conf`, tasks, triggers, filters, and supported preferences.
+4. Verify the task and trigger lists before uninstalling the older Courier package.
+
+After this one-time migration, normal APK updates preserve all app data because every release uses the same package ID and signing key.
+
+### Release signing
+
+Future releases must use the same signing key. Local credentials belong in ignored `local.properties`; CI uses the `COURIER_KEYSTORE_BASE64`, `COURIER_STORE_PASSWORD`, `COURIER_KEY_ALIAS`, and `COURIER_KEY_PASSWORD` secrets. Release builds fail when signing is not configured rather than producing an unusable unsigned update.
 
 [<img src="https://f-droid.org/badge/get-it-on.png"
     alt="Get it on F-Droid"
@@ -70,7 +88,7 @@ The intent needs the following:
 
 | Intent          |                   Content                   |                 |
 |:----------------|:-------------------------------------------:|----------------:|
-| packageName     |           de.felixnuesse.extract            |                 |
+| packageName     |              com.sidx255.courier             |                 |
 | className       | ca.pkay.rcloneexplorer.Services.SyncService |                 |
 | Action          |                 START_TASK                  |                 |
 | Integer Extra   |                    task                     |        idOfTask |

@@ -8,8 +8,8 @@ assignees: ''
 ---
 
 <!---
-If you just have a question around Round Sync-usage, you might find something in the documentation:
-https://roundsync.com/
+If you have a Courier usage question, check the repository README and existing issues first:
+https://github.com/sidx255/Courier
 
 If you have a question regarding rclone functionality (e.g. config files), the forum is a good place to ask:
 https://forum.rclone.org/
@@ -19,8 +19,8 @@ If you still think you have found a bug, please fill out the following questions
 -->
 - [ ] I have read the above note
 
-#### What version of Round Sync are you using (About -> App version)?
-<!-- Example: 2.1.0 -->
+#### What version of Courier are you using (About -> App version)?
+<!-- Example: 0.1.0 -->
 
 
 #### What is your Android version, phone model and manufacturer?

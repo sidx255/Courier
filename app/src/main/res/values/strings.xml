@@ -1,7 +1,7 @@
 <resources>
-    <string name="app_name">Round Sync</string>
+    <string name="app_name">Courier</string>
     <string name="app_description">Rclone for Android</string>
-    <string name="app_short_name">Round Sync</string>
+    <string name="app_short_name">Courier</string>
 
     <string name="title_activity_about">About</string>
     <string name="title_activity_changelog">Changelog</string>
@@ -29,9 +29,9 @@
     <string name="author_name" translatable="false">Patryk Kaczmarkiewicz &lt;github.com/patrykcoding&gt;</string>
     <string name="follow_on_github">Follow on GitHub</string>
     <string name="maintainer">Maintainer</string>
-    <string name="maintainer_name" translatable="false">Felix Nüsse &lt;github.com/newhinton&gt;</string>
+    <string name="maintainer_name" translatable="false">sidx255 &lt;github.com/sidx255&gt;</string>
     <string name="old_maintainer">Old Maintainer</string>
-    <string name="old_maintainer_name" translatable="false">x0b &lt;github.com/x0b&gt;</string>
+    <string name="old_maintainer_name" translatable="false">Round Sync maintainers &lt;github.com/newhinton&gt;</string>
     <string name="empty_folder">The folder is empty</string>
     <string name="ooops">Ooops!</string>
     <string name="no_config_found">No configuration found, please import or add remote</string>
@@ -44,10 +44,11 @@
     <string name="cancel">Cancel</string>
     <string name="select">Select</string>
     <string name="app_icon">App Icon</string>
-    <string name="github_app_url" translatable="false">https://github.com/newhinton/Round-Sync</string>
-    <string name="github_issue_url" translatable="false">https://github.com/newhinton/Round-Sync/issues/new/choose</string>
+    <string name="github_app_url" translatable="false">https://github.com/sidx255/Courier</string>
+    <string name="github_issue_url" translatable="false">https://github.com/sidx255/Courier/issues/new/choose</string>
     <string name="github_author_url" translatable="false">https://github.com/patrykcoding</string>
-    <string name="github_maintainer_url" translatable="false">https://github.com/newhinton</string>
+    <string name="github_maintainer_url" translatable="false">https://github.com/sidx255</string>
+    <string name="github_upstream_url" translatable="false">https://github.com/newhinton/Round-Sync</string>
     <string name="replace_config_file_question">Replace the current configuration file?</string>
     <string name="config_file_lost_statement">Your current configuration will be lost</string>
     <string name="continue_statement">Continue</string>
@@ -121,11 +122,11 @@
     <string name="from">from</string>
     <string name="flaticon" translatable="false">Flaticon</string>
     <string name="intro_welcome_title">Welcome!</string>
-    <string name="intro_welcome_description">Round Sync is a file management tool that can handle files stored on your device or in the cloud. For more questions, visit github.com/newhinton/Round-Sync.</string>
+    <string name="intro_welcome_description">Courier is a resilient rclone transfer and migration tool for files stored on your device or in the cloud.</string>
     <string name="intro_storage_title">Storage access</string>
-    <string name="intro_storage_description">Round Sync relies on rclone and needs your permission to access all files. Please grant storage access when prompted, otherwise the application will not work properly.</string>
+    <string name="intro_storage_description">Courier relies on rclone and needs your permission to access all files. Please grant storage access when prompted, otherwise the application will not work properly.</string>
     <string name="intro_community_title">Community</string>
-    <string name="intro_community_description">Round Sync is a community driven project. To contribute and improve the application, you can enable anonymous bug reporting. For more information, please visit felixnuesse.de/privacy-roundsync.</string>
+    <string name="intro_community_description">Courier is maintained by sidx255 and developed in the open at github.com/sidx255/Courier.</string>
 
     <string name="file_access">File Access</string>
     <string name="look_and_feel">Look and Feel</string>
@@ -144,14 +145,14 @@
     <string name="pref_locale_dlg_title">Select Language</string>
     <string name="pref_locale_restart_notice">Changing the language will take effect after restarting the app</string>
     <string name="use_logs">Log rclone errors</string>
-    <string name="use_logs_summary">Error logs will be saved to a local file at (Android/data/de.felixnuesse.extract/files/logs)</string>
+    <string name="use_logs_summary">Error logs will be saved locally at Android/data/com.sidx255.courier/files/logs.</string>
     <string name="notifications_pref_title">Notifications</string>
     <string name="open_notification_settings_title">More notification settings</string>
     <string name="open_notification_settings_summary">Open the settings to further change how we notify you!</string>
     <string name="open_notification_settings_button">Open!</string>
     <string name="content_description_circle">circle</string>
     <string name="loading">Loading</string>
-    <string name="app_not_configured">Round Sync is not configured</string>
+    <string name="app_not_configured">Courier is not configured</string>
     <string name="open_app_to_configure">Please open the app to set it up first</string>
     <string name="error_retrieving_files">Error retrieving files</string>
     <string name="background_service_broadcast" translatable="false">ca.pkay.rcexplorer.BACKGROUND_SERVICE_BROADCAST</string>
@@ -297,7 +298,7 @@
     <string name="virtual_content_provider_exception_error">Support info: \n%1$s</string>
     <string name="virtual_content_provider_null_content">Failed to retrieve remote or directory contents. Check the log file for more details.</string>
     <string name="virtual_content_provider_service_error">Failed to connect to rclone service. Force stop the app and try again.</string>
-    <string name="virtual_content_provider_no_remotes">No remotes configured. Open Round Sync to add a storage location.</string>
+    <string name="virtual_content_provider_no_remotes">No remotes configured. Open Courier to add a storage location.</string>
     <string name="remote_properties_remote_name">Remote name</string>
     <string name="remote_properties_storage_usage">Storage usage</string>
     <string name="remote_properties_storage_stats">%1$s / %2$s used (%3$s free)</string>
@@ -329,6 +330,10 @@
     <string name="tasks">Tasks</string>
     <string name="edit">Edit</string>
     <string name="start_task">Start Task</string>
+    <string name="task_verify_contents">Verify contents</string>
+    <string name="task_repair_differences">Repair differences</string>
+    <string name="task_verify_success">Every source file was verified byte-for-byte against the destination.</string>
+    <string name="task_repair_success">Missing or different files were repaired successfully.</string>
     <string name="copy_taskid">Copy TaskID</string>
     <string name="task_copied_id_to_clipboard">Copied ID "%s" to clipboard!</string>
     <string name="importer_unknown_error">Unknown error importing task!</string>
@@ -427,8 +432,8 @@
         <item quantity="other">%s Files were uploaded!</item>
     </plurals>
 
-    <string name="abi_not_supported_arm_downgrade">Unfortunately, this Round Sync version is not compatible with your device. Try the armeabi-v7a APK from github.com/newhinton/Round-Sync/releases/latest.</string>
-    <string name="abi_not_supported">Your device does not support this version of Round Sync.</string>
+    <string name="abi_not_supported_arm_downgrade">This Courier build is not compatible with your device. Try the armeabi-v7a APK from github.com/sidx255/Courier/releases/latest.</string>
+    <string name="abi_not_supported">Your device does not support this version of Courier.</string>
     <string name="trigger">Triggers</string>
     <string name="title_activity_trigger">Triggers</string>
     <string name="enabled">Enabled</string>
@@ -494,6 +499,9 @@
     <string name="use_md5checksum">Use md5 checksum</string>
     <string name="task_hint_wifi_ignore_defaults">If enabled, this setting overrides the global setting to only transfer files over Wi-Fi</string>
     <string name="task_hint_md5checksum">This will use the checksum instead of filesize. May take longer or use more battery.</string>
+    <string name="task_destructive_warning_title">Destructive task</string>
+    <string name="task_destructive_warning_message">Sync and Delete excluded can permanently remove files from the destination. For archival backups, use Copy and keep Delete excluded off.</string>
+    <string name="task_save_destructive">Save destructive task</string>
     <string name="shortcut_start_service">Started Sync</string>
     <string name="shortcut_missing_id">Could not start Sync</string>
     <string name="task_copy_suffix">(Copy)</string>
@@ -614,6 +622,26 @@
     <string name="preference_category_header_thumbnails">Thumbnails</string>
     <string name="preference_category_header_proxy">Proxy</string>
     <string name="preference_category_header_background_work">Background Work</string>
+    <string name="pref_header_transfer_performance">Transfer Performance</string>
+    <string name="transferPerformanceSettingsDescription">Parallelism, multi-threading and speed</string>
+    <string name="transfer_performance_settings_icon_content_description">Transfer performance settings icon</string>
+    <string name="pref_category_parallelism">Parallelism</string>
+    <string name="pref_category_multithread">Large files</string>
+    <string name="pref_category_memory">Memory</string>
+    <string name="pref_transfers_title">Parallel file transfers (--transfers)</string>
+    <string name="pref_transfers_summary">Number of files copied at the same time. Higher is much faster for many small files, but uses more memory.</string>
+    <string name="pref_checkers_title">Parallel checkers (--checkers)</string>
+    <string name="pref_checkers_summary">Number of files compared at the same time when deciding what to transfer.</string>
+    <string name="pref_inplace_title">Write in place (--inplace)</string>
+    <string name="pref_inplace_summary">Write straight to the final file instead of a temporary file. Fixes failed uploads on Synology/SMB shares.</string>
+    <string name="pref_multithread_streams_title">Multi-thread streams (--multi-thread-streams)</string>
+    <string name="pref_multithread_streams_summary">Split large files into this many parallel chunks.</string>
+    <string name="pref_multithread_cutoff_title">Multi-thread cutoff, MiB (--multi-thread-cutoff)</string>
+    <string name="pref_multithread_cutoff_summary">Only files larger than this use multi-threaded transfer.</string>
+    <string name="pref_buffer_size_title">Buffer size, MiB (--buffer-size)</string>
+    <string name="pref_buffer_size_summary">In-memory read buffer per transfer. Lower this if the app runs out of memory.</string>
+    <string name="pref_use_mmap_title">Memory-mapped buffers (--use-mmap)</string>
+    <string name="pref_use_mmap_summary">Reduces memory pressure during large transfers.</string>
     <string name="preference_category_header_logging">Logging</string>
     <string name="preference_category_header_rclone">Rclone</string>
     <string name="preference_category_header_updates">Updates</string>

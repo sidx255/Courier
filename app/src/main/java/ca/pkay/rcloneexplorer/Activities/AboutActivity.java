@@ -103,7 +103,7 @@ public class AboutActivity extends AppCompatActivity {
     }
 
     private void openOldMaintainerGithubLink() {
-        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.github_maintainer_url)));
+        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.github_upstream_url)));
         tryStartActivity(this, browserIntent);
     }
 }

@@ -67,6 +67,12 @@ public class SharedPreferencesBackup {
         main.put("isWrapFilenames", isWrapFilenames);
         main.put("appUpdates", appUpdates);
         main.put("useLogs", useLogs);
+        main.put("courierTransfers", sharedPreferences.getString(context.getString(R.string.pref_key_transfers), "4"));
+        main.put("courierCheckers", sharedPreferences.getString(context.getString(R.string.pref_key_checkers), "8"));
+        main.put("courierMultiThreadStreams", sharedPreferences.getString(context.getString(R.string.pref_key_multithread_streams), "4"));
+        main.put("courierMultiThreadCutoff", sharedPreferences.getString(context.getString(R.string.pref_key_multithread_cutoff), "64"));
+        main.put("courierBufferSize", sharedPreferences.getString(context.getString(R.string.pref_key_buffer_size), "16"));
+        main.put("courierUseMmap", sharedPreferences.getBoolean(context.getString(R.string.pref_key_use_mmap), true));
 
         return main.toString();
     }
@@ -119,7 +125,34 @@ public class SharedPreferencesBackup {
         // Logging
         editor.putBoolean(context.getString(R.string.pref_key_logs), jsonObject.getBoolean("useLogs"));
 
+        editor.putString(context.getString(R.string.pref_key_transfers), jsonObject.optString("courierTransfers", "4"));
+        editor.putString(context.getString(R.string.pref_key_checkers), jsonObject.optString("courierCheckers", "8"));
+        editor.putString(context.getString(R.string.pref_key_multithread_streams), jsonObject.optString("courierMultiThreadStreams", "4"));
+        editor.putString(context.getString(R.string.pref_key_multithread_cutoff), jsonObject.optString("courierMultiThreadCutoff", "64"));
+        editor.putString(context.getString(R.string.pref_key_buffer_size), jsonObject.optString("courierBufferSize", "16"));
+        editor.putBoolean(context.getString(R.string.pref_key_use_mmap), jsonObject.optBoolean("courierUseMmap", true));
+
         editor.apply();
+    }
+
+    public static void validateJson(String json) throws JSONException {
+        JSONObject jsonObject = new JSONObject(json);
+        jsonObject.getBoolean("showThumbnails");
+        jsonObject.getBoolean("isWifiOnly");
+        jsonObject.getBoolean("useProxy");
+        jsonObject.getString("proxyProtocol");
+        jsonObject.getString("proxyHost");
+        jsonObject.getInt("proxyPort");
+        jsonObject.getString("proxyUser");
+        jsonObject.getBoolean("safEnabled");
+        jsonObject.getBoolean("refreshLaEnabled");
+        jsonObject.getBoolean("vcpEnabled");
+        jsonObject.getBoolean("vcpDeclareLocal");
+        jsonObject.getBoolean("vcpGrantAll");
+        jsonObject.get("isDarkTheme");
+        jsonObject.getBoolean("isWrapFilenames");
+        jsonObject.getBoolean("appUpdates");
+        jsonObject.getBoolean("useLogs");
     }
 
 }
