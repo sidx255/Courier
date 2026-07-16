@@ -9,9 +9,17 @@
         android:icon="@drawable/ic_check"
         android:title="@string/task_verify_contents" />
     <item
+        android:id="@+id/action_verify_deep_task"
+        android:icon="@drawable/ic_check"
+        android:title="@string/task_verify_deep" />
+    <item
         android:id="@+id/action_repair_task"
         android:icon="@drawable/ic_refresh"
         android:title="@string/task_repair_differences" />
+    <item
+        android:id="@+id/action_repair_deep_task"
+        android:icon="@drawable/ic_refresh"
+        android:title="@string/task_repair_deep" />
     <item
         android:id="@+id/action_edit_task"
         android:icon="@drawable/ic_edit_black"

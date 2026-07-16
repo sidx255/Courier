@@ -54,7 +54,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         // Todo: Allow SyncWorker to run in silent mode, or remove this!
         const val EXTRA_TASK_SILENT = "notification"
 
-        private const val MAX_RUN_ATTEMPTS = 3
+        private const val RETRY_WINDOW_MS = 2 * 60 * 1000L
     }
 
 
@@ -92,9 +92,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
     private lateinit var mTask: Task
     private var mTitle: String = mContext.getString(R.string.sync_service_notification_startingsync)
     private var mOperation = SyncOperation.TRANSFER
-
-    private var mStableTaskId = false
-    private var mTrackInflight = false
+    private var mVerifyDifferences: List<String> = emptyList()
 
 
     override fun doWork(): Result {
@@ -119,7 +117,6 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
             if(inputData.keyValueMap.containsKey(TASK_ID)){
                 val id = inputData.getLong(TASK_ID, -1)
                 ephemeralTask = mDatabase.getTask(id)
-                mStableTaskId = true
             }
 
             if(inputData.keyValueMap.containsKey(TASK_EPHEMERAL)){
@@ -143,7 +140,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
                 handleTask()
 
                 if (shouldRetry()) {
-                    SyncLog.info(mContext, mTitle, "Transient failure ($failureReason), attempt $runAttemptCount. Retrying.")
+                    SyncLog.info(mContext, mTitle, "Transient failure ($failureReason). Retrying within the 2-minute recovery window.")
                     cleanupForRetry()
                     return Result.retry()
                 }
@@ -180,7 +177,29 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
 
     private fun shouldRetry(): Boolean {
         val transient = failureReason == FAILURE_REASON.NO_CONNECTION || lastExitCode == 5
-        return transient && runAttemptCount + 1 < MAX_RUN_ATTEMPTS
+        if (!transient) {
+            clearRetryWindow()
+            return false
+        }
+        val now = System.currentTimeMillis()
+        var windowStart = mPreferences.getLong(retryWindowKey(), 0L)
+        if (windowStart == 0L) {
+            windowStart = now
+            mPreferences.edit().putLong(retryWindowKey(), windowStart).apply()
+        }
+        val withinWindow = now - windowStart < RETRY_WINDOW_MS
+        if (!withinWindow) {
+            clearRetryWindow()
+        }
+        return withinWindow
+    }
+
+    private fun retryWindowKey(): String = "courier_retry_window_${mTask.id}"
+
+    private fun clearRetryWindow() {
+        if (::mTask.isInitialized) {
+            mPreferences.edit().remove(retryWindowKey()).apply()
+        }
     }
 
     private fun cleanupForRetry() {
@@ -233,10 +252,12 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
             val taskFilterList = taskFilter?.getFilters() ?: ArrayList()
             when (mOperation) {
                 SyncOperation.TRANSFER -> transferTask(remoteItem, taskFilterList)
-                SyncOperation.VERIFY -> verifyTask(remoteItem, taskFilterList)
-                SyncOperation.REPAIR -> repairTask(remoteItem, taskFilterList)
+                SyncOperation.VERIFY -> verifyTask(remoteItem, taskFilterList, false)
+                SyncOperation.VERIFY_DEEP -> verifyTask(remoteItem, taskFilterList, true)
+                SyncOperation.REPAIR -> repairTask(remoteItem, taskFilterList, false)
+                SyncOperation.REPAIR_DEEP -> repairTask(remoteItem, taskFilterList, true)
             }
-            if (failureReason == FAILURE_REASON.NO_FAILURE && mOperation != SyncOperation.VERIFY) {
+            if (failureReason == FAILURE_REASON.NO_FAILURE && mOperation == SyncOperation.TRANSFER) {
                 sendUploadFinishedBroadcast(remoteItem.name, mTask.remotePath)
             }
         }
@@ -253,9 +274,6 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
 
     private fun transferTask(remoteItem: RemoteItem, filters: ArrayList<ca.pkay.rcloneexplorer.Items.FilterEntry>) {
         cleanupStalePartials(remoteItem)
-        mTrackInflight = mStableTaskId
-
-        healInterruptedTransfer(remoteItem)
 
         if (!isStopped) {
             sRcloneProcess = mRclone.sync(
@@ -269,85 +287,9 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
             )
             handleSync(mTitle)
         }
-
-        mTrackInflight = false
-        if (failureReason == FAILURE_REASON.NO_FAILURE) {
-            clearInflight()
-        }
     }
 
-    private fun healInterruptedTransfer(remoteItem: RemoteItem) {
-        if (!mStableTaskId || isStopped) {
-            return
-        }
-        val marker = inflightFile()
-        val suspects = marker.takeIf { it.exists() }?.readLines()
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() }
-            ?.distinct()
-            ?: emptyList()
-        marker.delete()
-        if (suspects.isEmpty()) {
-            return
-        }
-
-        SyncLog.info(
-            mContext,
-            mTitle,
-            "Previous run was interrupted. Re-uploading ${suspects.size} possibly-incomplete file(s)."
-        )
-        val filesFrom = reportFile("resume-files")
-        filesFrom.writeText(suspects.joinToString(System.lineSeparator()))
-        statusObject.clearObject()
-        sRcloneProcess = mRclone.repair(
-            remoteItem,
-            mTask.localPath,
-            mTask.remotePath,
-            mTask.direction,
-            filesFrom.absolutePath
-        )
-        handleSync(getString(R.string.task_repair_differences), false)
-        filesFrom.delete()
-    }
-
-    private fun inflightFile(): File {
-        return File(mContext.filesDir, "courier-inflight-${mTask.id}.lst")
-    }
-
-    private fun clearInflight() {
-        inflightFile().delete()
-    }
-
-    private fun updateInflight(logline: JSONObject) {
-        if (!mTrackInflight) {
-            return
-        }
-        try {
-            val stats = logline.optJSONObject("stats") ?: return
-            val transferring = stats.optJSONArray("transferring")
-            val names = StringBuilder()
-            if (transferring != null) {
-                for (i in 0 until transferring.length()) {
-                    val name = transferring.optJSONObject(i)?.optString("name", "").orEmpty()
-                    if (name.isNotEmpty()) {
-                        names.append(name).append(System.lineSeparator())
-                    }
-                }
-            }
-            val marker = inflightFile()
-            if (names.isEmpty()) {
-                if (marker.exists()) {
-                    marker.writeText("")
-                }
-            } else {
-                marker.writeText(names.toString())
-            }
-        } catch (e: Exception) {
-            FLog.e(TAG, "updateInflight: could not record in-flight files", e)
-        }
-    }
-
-    private fun verifyTask(remoteItem: RemoteItem, filters: ArrayList<ca.pkay.rcloneexplorer.Items.FilterEntry>) {
+    private fun verifyTask(remoteItem: RemoteItem, filters: ArrayList<ca.pkay.rcloneexplorer.Items.FilterEntry>, deep: Boolean) {
         val report = reportFile("verify")
         report.delete()
         sRcloneProcess = mRclone.verify(
@@ -356,12 +298,25 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
             mTask.remotePath,
             mTask.direction,
             filters,
-            report.absolutePath
+            report.absolutePath,
+            deep
         )
-        handleSync(getString(R.string.task_verify_contents))
+        val exit = handleSync(getString(R.string.task_verify_contents), false)
+        if (exit == 0) {
+            mVerifyDifferences = emptyList()
+            failureReason = FAILURE_REASON.NO_FAILURE
+            return
+        }
+        val diffs = readReportPaths(report)
+        if (diffs.isEmpty()) {
+            failureReason = FAILURE_REASON.RCLONE_ERROR
+            return
+        }
+        mVerifyDifferences = diffs
+        failureReason = FAILURE_REASON.NO_FAILURE
     }
 
-    private fun repairTask(remoteItem: RemoteItem, filters: ArrayList<ca.pkay.rcloneexplorer.Items.FilterEntry>) {
+    private fun repairTask(remoteItem: RemoteItem, filters: ArrayList<ca.pkay.rcloneexplorer.Items.FilterEntry>, deep: Boolean) {
         cleanupStalePartials(remoteItem)
         val report = reportFile("repair-check")
         report.delete()
@@ -371,7 +326,8 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
             mTask.remotePath,
             mTask.direction,
             filters,
-            report.absolutePath
+            report.absolutePath,
+            deep
         )
         val checkExit = handleSync(getString(R.string.task_repair_differences), false)
         if (checkExit == 0) {
@@ -379,16 +335,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
             return
         }
 
-        val repairPaths = report.takeIf { it.exists() }?.readLines()
-            ?.mapNotNull { line ->
-                if (line.length > 2 && (line[0] == '+' || line[0] == '*' || line[0] == '!')) {
-                    line.substring(2)
-                } else {
-                    null
-                }
-            }
-            ?.distinct()
-            ?: emptyList()
+        val repairPaths = readReportPaths(report)
         if (repairPaths.isEmpty()) {
             failureReason = FAILURE_REASON.RCLONE_ERROR
             return
@@ -413,6 +360,19 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         return File(mContext.cacheDir, "courier-task-${mTask.id}-$suffix.txt")
     }
 
+    private fun readReportPaths(report: File): List<String> {
+        return report.takeIf { it.exists() }?.readLines()
+            ?.mapNotNull { line ->
+                if (line.length > 2 && (line[0] == '+' || line[0] == '*' || line[0] == '!')) {
+                    line.substring(2)
+                } else {
+                    null
+                }
+            }
+            ?.distinct()
+            ?: emptyList()
+    }
+
     private fun handleSync(title: String, recordFailure: Boolean = true): Int {
         SyncLog.info(mContext, mTitle, mContext.getString(R.string.operation_start_sync))
         var exitCode = -1
@@ -435,7 +395,6 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
                             statusObject.parseLoglineToStatusObject(logline)
                         } else if (logline.has("stats")) {
                             statusObject.parseLoglineToStatusObject(logline)
-                            updateInflight(logline)
                         }
 
                         updateForegroundNotification(mNotificationManager.updateSyncNotification(
@@ -537,8 +496,18 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         //Todo: Show sync-errors in notification. Also see line 169
 
         var message = when (mOperation) {
-            SyncOperation.VERIFY -> getString(R.string.task_verify_success)
-            SyncOperation.REPAIR -> getString(R.string.task_repair_success)
+            SyncOperation.VERIFY, SyncOperation.VERIFY_DEEP ->
+                if (mVerifyDifferences.isEmpty()) {
+                    if (mOperation == SyncOperation.VERIFY_DEEP) {
+                        getString(R.string.task_verify_success_deep)
+                    } else {
+                        getString(R.string.task_verify_success)
+                    }
+                } else {
+                    mContext.getString(R.string.task_verify_found_differences, mVerifyDifferences.size) +
+                            "\n" + mVerifyDifferences.take(20).joinToString("\n")
+                }
+            SyncOperation.REPAIR, SyncOperation.REPAIR_DEEP -> getString(R.string.task_repair_success)
             SyncOperation.TRANSFER -> generateSuccessMessage(statusObject)
         }
         mNotificationManager.showSuccessNotificationOrReport(

@@ -212,6 +212,7 @@ public class Rclone {
         environmentValues.add("RCLONE_CONTIMEOUT=2m");
 
         // Allow the caller to overwrite any option for special cases
+        ArrayList<String> overrides = new ArrayList<>();
         Iterator<String> envVarIter = environmentValues.iterator();
         while(envVarIter.hasNext()){
             String envVar = envVarIter.next();
@@ -219,10 +220,11 @@ public class Rclone {
             for(String overwrite : overwriteOptions){
                 if(overwrite.startsWith(optionName)) {
                     envVarIter.remove();
-                    environmentValues.add(overwrite);
+                    overrides.add(overwrite);
                 }
             }
         }
+        environmentValues.addAll(overrides);
         return environmentValues.toArray(new String[0]);
     }
 
@@ -806,7 +808,8 @@ public class Rclone {
             String remotePath,
             int syncDirection,
             ArrayList<FilterEntry> filters,
-            String combinedReportPath
+            String combinedReportPath,
+            boolean deep
     ) {
         String remoteSection = getRemoteSection(remoteItem, remotePath);
         ArrayList<String> parameters = new ArrayList<>();
@@ -823,7 +826,7 @@ public class Rclone {
             return null;
         }
         Collections.addAll(parameters,
-                "--download",
+                deep ? "--download" : "--size-only",
                 "--one-way",
                 "--combined", combinedReportPath,
                 "--stats=1s",

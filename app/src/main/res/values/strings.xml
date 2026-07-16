@@ -331,8 +331,12 @@
     <string name="edit">Edit</string>
     <string name="start_task">Start Task</string>
     <string name="task_verify_contents">Verify contents</string>
+    <string name="task_verify_deep">Deep verify (download &amp; byte-compare)</string>
     <string name="task_repair_differences">Repair differences</string>
-    <string name="task_verify_success">Every source file was verified byte-for-byte against the destination.</string>
+    <string name="task_repair_deep">Deep repair (byte-compare, then re-upload)</string>
+    <string name="task_verify_success">Every source file matches the destination by size.</string>
+    <string name="task_verify_success_deep">Every source file was verified byte-for-byte against the destination.</string>
+    <string name="task_verify_found_differences">Found %1$d file(s) that differ. Run this task to fix them:</string>
     <string name="task_repair_success">Missing or different files were repaired successfully.</string>
     <string name="copy_taskid">Copy TaskID</string>
     <string name="task_copied_id_to_clipboard">Copied ID "%s" to clipboard!</string>
@@ -395,6 +399,7 @@
     <string name="sync_notification_deletions">"Deletions: %d"</string>
     <string name="sync_notification_file_syncing">File: %14s</string>
     <string name="sync_notification_file_checking">Checking: %14s</string>
+    <string name="sync_notification_checking_progress">Checked %1$d of %2$d</string>
     <string name="sync_notification_elapsed">Elapsed: %14s</string>
     <string name="sync_notification_short">%1$s of %2$s, %3$s remaining</string>
     <plurals name="modern_prettyprint_duration_d">

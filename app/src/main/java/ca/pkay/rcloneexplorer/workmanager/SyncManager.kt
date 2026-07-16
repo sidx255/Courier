@@ -20,6 +20,7 @@ class SyncManager(private var mContext: Context) {
 
     companion object {
         private const val UNIQUE_TASK_PREFIX = "sync_task_"
+        private const val UNIQUE_VERIFY_PREFIX = "sync_verify_"
         private const val UNIQUE_EPHEMERAL_PREFIX = "sync_ephemeral_"
     }
 
@@ -57,13 +58,17 @@ class SyncManager(private var mContext: Context) {
             .addTag(taskID.toString())
             .setConstraints(buildConstraints())
             .setBackoffCriteria(
-                BackoffPolicy.EXPONENTIAL,
+                BackoffPolicy.LINEAR,
                 WorkRequest.MIN_BACKOFF_MILLIS,
                 TimeUnit.MILLISECONDS
             )
             .build()
 
-        workUnique(UNIQUE_TASK_PREFIX + taskID, policy, uploadWorkRequest)
+        workUnique(uniqueNameFor(operation) + taskID, policy, uploadWorkRequest)
+    }
+
+    private fun uniqueNameFor(operation: SyncOperation): String {
+        return if (operation == SyncOperation.TRANSFER) UNIQUE_TASK_PREFIX else UNIQUE_VERIFY_PREFIX
     }
 
     fun queueEphemeral(task: Task) {
@@ -76,7 +81,7 @@ class SyncManager(private var mContext: Context) {
             .addTag(task.id.toString())
             .setConstraints(buildConstraints())
             .setBackoffCriteria(
-                BackoffPolicy.EXPONENTIAL,
+                BackoffPolicy.LINEAR,
                 WorkRequest.MIN_BACKOFF_MILLIS,
                 TimeUnit.MILLISECONDS
             )

@@ -176,8 +176,14 @@ public class TasksRecyclerViewAdapter extends RecyclerView.Adapter<TasksRecycler
                 case R.id.action_verify_task:
                     new SyncManager(context).queue(task, SyncOperation.VERIFY);
                     break;
+                case R.id.action_verify_deep_task:
+                    new SyncManager(context).queue(task, SyncOperation.VERIFY_DEEP);
+                    break;
                 case R.id.action_repair_task:
                     new SyncManager(context).queue(task, SyncOperation.REPAIR);
+                    break;
+                case R.id.action_repair_deep_task:
+                    new SyncManager(context).queue(task, SyncOperation.REPAIR_DEEP);
                     break;
                 case R.id.action_edit_task:
                     editTask(task);

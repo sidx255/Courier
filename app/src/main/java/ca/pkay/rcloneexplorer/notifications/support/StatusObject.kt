@@ -79,12 +79,15 @@ class StatusObject(var mContext: Context){
 
     fun parseLoglineToStatusObject(logLine: JSONObject) {
         if(logLine.getString("level") == "error") {
-            clearObject()
-            mLogline = logLine
+            val msg = logLine.optString("msg", "")
+            if (!msg.contains("no common hash found", ignoreCase = true)) {
+                clearObject()
+                mLogline = logLine
 
-            var error = ErrorObject(getErrorObject(), getErrorMessage())
-            Log.e(TAG, error.mErrorObject + " - " + error.mErrorMessage)
-            mErrorList.add(error)
+                var error = ErrorObject(getErrorObject(), getErrorMessage())
+                Log.e(TAG, error.mErrorObject + " - " + error.mErrorMessage)
+                mErrorList.add(error)
+            }
         }
 
         if(logLine.has("stats")) {
@@ -104,12 +107,20 @@ class StatusObject(var mContext: Context){
             // when we check stuff, dont show the other messages.
             val checks = mStats.optJSONArray("checking")
             if(checks != null) {
-                var filename = checks.getString(0)
-                if(!filename.equals("")) {
+                val done = mStats.optInt("checks", 0)
+                val total = mStats.optInt("totalChecks", 0)
+                notificationPercent = if (total > 0) done * 100 / total else 0
+                notificationContent = String.format(
+                    mContext.getString(R.string.sync_notification_checking_progress),
+                    done,
+                    total
+                )
+                val filename = checks.optString(0, "")
+                if(filename != "") {
                     notificationBigText.add(
                         String.format(
                             mContext.getString(R.string.sync_notification_elapsed),
-                            prettyPrintDuration(mStats.getInt("elapsedTime"))
+                            prettyPrintDuration(mStats.optInt("elapsedTime", 0))
                         )
                     )
 
