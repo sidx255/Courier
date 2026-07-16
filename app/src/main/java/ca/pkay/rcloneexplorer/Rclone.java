@@ -153,7 +153,7 @@ public class Rclone {
         return createCommand(command);
     }
 
-    public String[] getRcloneEnv(String... overwriteOptions) {
+    private ArrayList<String> getBaseEnv() {
         ArrayList<String> environmentValues = new ArrayList<>();
         SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
 
@@ -184,6 +184,17 @@ public class Rclone {
         // ignore chtimes errors
         // ref: https://github.com/rclone/rclone/issues/2446
         environmentValues.add("RCLONE_LOCAL_NO_SET_MODTIME=true");
+
+        return environmentValues;
+    }
+
+    public String[] getListingEnv() {
+        return getBaseEnv().toArray(new String[0]);
+    }
+
+    public String[] getRcloneEnv(String... overwriteOptions) {
+        ArrayList<String> environmentValues = getBaseEnv();
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
 
         environmentValues.add("RCLONE_TRANSFERS=" + prefInt(pref, R.string.pref_key_transfers, 4, 1, 32));
         environmentValues.add("RCLONE_CHECKERS=" + prefInt(pref, R.string.pref_key_checkers, 8, 1, 64));
@@ -293,7 +304,7 @@ public class Rclone {
         } else {
             command = createCommandWithOptions("lsjson", remoteAndPath);
         }
-        String[] env = getRcloneEnv();
+        String[] env = getListingEnv();
         JSONArray results;
         Process process = null;
         try {

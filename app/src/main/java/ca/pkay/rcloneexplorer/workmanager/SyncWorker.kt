@@ -93,6 +93,8 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
     private var mTitle: String = mContext.getString(R.string.sync_service_notification_startingsync)
     private var mOperation = SyncOperation.TRANSFER
 
+    private var mStableTaskId = false
+    private var mTrackInflight = false
 
 
     override fun doWork(): Result {
@@ -117,6 +119,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
             if(inputData.keyValueMap.containsKey(TASK_ID)){
                 val id = inputData.getLong(TASK_ID, -1)
                 ephemeralTask = mDatabase.getTask(id)
+                mStableTaskId = true
             }
 
             if(inputData.keyValueMap.containsKey(TASK_EPHEMERAL)){
@@ -229,19 +232,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
             val taskFilter = if(mTask.filterId != null ) mDatabase.getFilter(mTask.filterId!!) else null;
             val taskFilterList = taskFilter?.getFilters() ?: ArrayList()
             when (mOperation) {
-                SyncOperation.TRANSFER -> {
-                    cleanupStalePartials(remoteItem)
-                    sRcloneProcess = mRclone.sync(
-                        remoteItem,
-                        mTask.localPath,
-                        mTask.remotePath,
-                        mTask.direction,
-                        false,
-                        taskFilterList,
-                        mTask.deleteExcluded
-                    )
-                    handleSync(mTitle)
-                }
+                SyncOperation.TRANSFER -> transferTask(remoteItem, taskFilterList)
                 SyncOperation.VERIFY -> verifyTask(remoteItem, taskFilterList)
                 SyncOperation.REPAIR -> repairTask(remoteItem, taskFilterList)
             }
@@ -258,6 +249,102 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
             }
         }
         cleanup.waitFor()
+    }
+
+    private fun transferTask(remoteItem: RemoteItem, filters: ArrayList<ca.pkay.rcloneexplorer.Items.FilterEntry>) {
+        cleanupStalePartials(remoteItem)
+        mTrackInflight = mStableTaskId
+
+        healInterruptedTransfer(remoteItem)
+
+        if (!isStopped) {
+            sRcloneProcess = mRclone.sync(
+                remoteItem,
+                mTask.localPath,
+                mTask.remotePath,
+                mTask.direction,
+                false,
+                filters,
+                mTask.deleteExcluded
+            )
+            handleSync(mTitle)
+        }
+
+        mTrackInflight = false
+        if (failureReason == FAILURE_REASON.NO_FAILURE) {
+            clearInflight()
+        }
+    }
+
+    private fun healInterruptedTransfer(remoteItem: RemoteItem) {
+        if (!mStableTaskId || isStopped) {
+            return
+        }
+        val marker = inflightFile()
+        val suspects = marker.takeIf { it.exists() }?.readLines()
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.distinct()
+            ?: emptyList()
+        marker.delete()
+        if (suspects.isEmpty()) {
+            return
+        }
+
+        SyncLog.info(
+            mContext,
+            mTitle,
+            "Previous run was interrupted. Re-uploading ${suspects.size} possibly-incomplete file(s)."
+        )
+        val filesFrom = reportFile("resume-files")
+        filesFrom.writeText(suspects.joinToString(System.lineSeparator()))
+        statusObject.clearObject()
+        sRcloneProcess = mRclone.repair(
+            remoteItem,
+            mTask.localPath,
+            mTask.remotePath,
+            mTask.direction,
+            filesFrom.absolutePath
+        )
+        handleSync(getString(R.string.task_repair_differences), false)
+        filesFrom.delete()
+    }
+
+    private fun inflightFile(): File {
+        return File(mContext.filesDir, "courier-inflight-${mTask.id}.lst")
+    }
+
+    private fun clearInflight() {
+        inflightFile().delete()
+    }
+
+    private fun updateInflight(logline: JSONObject) {
+        if (!mTrackInflight) {
+            return
+        }
+        try {
+            val stats = logline.optJSONObject("stats") ?: return
+            val transferring = stats.optJSONArray("transferring")
+            val names = StringBuilder()
+            if (transferring != null) {
+                for (i in 0 until transferring.length()) {
+                    val name = transferring.optJSONObject(i)?.optString("name", "").orEmpty()
+                    if (name.isNotEmpty()) {
+                        names.append(name).append(System.lineSeparator())
+                    }
+                }
+            }
+            val marker = inflightFile()
+            if (names.isEmpty()) {
+                if (marker.exists()) {
+                    marker.writeText("")
+                }
+            } else {
+                marker.writeText(names.toString())
+            }
+        } catch (e: Exception) {
+            FLog.e(TAG, "updateInflight: could not record in-flight files", e)
+        }
     }
 
     private fun verifyTask(remoteItem: RemoteItem, filters: ArrayList<ca.pkay.rcloneexplorer.Items.FilterEntry>) {
@@ -348,6 +435,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
                             statusObject.parseLoglineToStatusObject(logline)
                         } else if (logline.has("stats")) {
                             statusObject.parseLoglineToStatusObject(logline)
+                            updateInflight(logline)
                         }
 
                         updateForegroundNotification(mNotificationManager.updateSyncNotification(
