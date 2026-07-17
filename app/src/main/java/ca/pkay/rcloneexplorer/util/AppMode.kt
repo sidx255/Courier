@@ -11,6 +11,12 @@ object AppMode {
     const val MODE_ADVANCED = "advanced"
 
     private const val GUIDED_TASK_IDS_KEY = "courier_guided_task_ids"
+    private const val GUIDED_TASK_CATEGORIES_KEY = "courier_guided_task_categories"
+    private const val GUIDED_TRIGGER_ID_KEY = "courier_guided_trigger_id"
+    private const val GUIDED_REMOTE_NAME_KEY = "courier_guided_remote_name"
+    private const val GUIDED_SHARE_KEY = "courier_guided_share"
+    private const val GUIDED_DEVICE_NAME_KEY = "courier_guided_device_name"
+    private const val GUIDED_SETUP_COMPLETE_KEY = "courier_guided_setup_complete"
 
     @JvmStatic
     fun isSimpleMode(context: Context): Boolean = getMode(context) == MODE_SIMPLE
@@ -64,6 +70,94 @@ object AppMode {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val updated = (prefs.getStringSet(GUIDED_TASK_IDS_KEY, emptySet()) ?: return).toMutableSet()
         updated.remove(taskId.toString())
-        prefs.edit().putStringSet(GUIDED_TASK_IDS_KEY, updated).apply()
+        val categories = getGuidedTaskCategories(context).toMutableMap()
+        categories.remove(taskId)
+        prefs.edit()
+            .putStringSet(GUIDED_TASK_IDS_KEY, updated)
+            .putStringSet(GUIDED_TASK_CATEGORIES_KEY, encodeTaskCategories(categories))
+            .apply()
+    }
+
+    @JvmStatic
+    fun getGuidedTaskCategories(context: Context): Map<Long, String> {
+        return PreferenceManager.getDefaultSharedPreferences(context)
+            .getStringSet(GUIDED_TASK_CATEGORIES_KEY, emptySet())
+            .orEmpty()
+            .mapNotNull { entry ->
+                val separator = entry.indexOf('=')
+                if (separator <= 0) return@mapNotNull null
+                val taskId = entry.substring(0, separator).toLongOrNull() ?: return@mapNotNull null
+                taskId to entry.substring(separator + 1)
+            }
+            .toMap()
+    }
+
+    @JvmStatic
+    fun getGuidedTriggerId(context: Context): Long {
+        return PreferenceManager.getDefaultSharedPreferences(context)
+            .getLong(GUIDED_TRIGGER_ID_KEY, -1L)
+    }
+
+    @JvmStatic
+    fun getGuidedRemoteName(context: Context): String? {
+        return PreferenceManager.getDefaultSharedPreferences(context)
+            .getString(GUIDED_REMOTE_NAME_KEY, null)
+    }
+
+    @JvmStatic
+    fun getGuidedShare(context: Context): String? {
+        return PreferenceManager.getDefaultSharedPreferences(context)
+            .getString(GUIDED_SHARE_KEY, null)
+    }
+
+    @JvmStatic
+    fun getGuidedDeviceName(context: Context): String? {
+        return PreferenceManager.getDefaultSharedPreferences(context)
+            .getString(GUIDED_DEVICE_NAME_KEY, null)
+    }
+
+    @JvmStatic
+    fun isGuidedSetupComplete(context: Context): Boolean {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        return prefs.getBoolean(GUIDED_SETUP_COMPLETE_KEY, false) && getGuidedTaskIds(context).isNotEmpty()
+    }
+
+    @JvmStatic
+    fun setGuidedConfiguration(
+        context: Context,
+        taskCategories: Map<Long, String>,
+        triggerId: Long,
+        remoteName: String,
+        share: String,
+        deviceName: String
+    ) {
+        PreferenceManager.getDefaultSharedPreferences(context)
+            .edit()
+            .putStringSet(GUIDED_TASK_IDS_KEY, taskCategories.keys.map(Long::toString).toSet())
+            .putStringSet(GUIDED_TASK_CATEGORIES_KEY, encodeTaskCategories(taskCategories))
+            .putLong(GUIDED_TRIGGER_ID_KEY, triggerId)
+            .putString(GUIDED_REMOTE_NAME_KEY, remoteName)
+            .putString(GUIDED_SHARE_KEY, share)
+            .putString(GUIDED_DEVICE_NAME_KEY, deviceName)
+            .putBoolean(GUIDED_SETUP_COMPLETE_KEY, true)
+            .apply()
+    }
+
+    @JvmStatic
+    fun clearGuidedConfiguration(context: Context) {
+        PreferenceManager.getDefaultSharedPreferences(context)
+            .edit()
+            .remove(GUIDED_TASK_IDS_KEY)
+            .remove(GUIDED_TASK_CATEGORIES_KEY)
+            .remove(GUIDED_TRIGGER_ID_KEY)
+            .remove(GUIDED_REMOTE_NAME_KEY)
+            .remove(GUIDED_SHARE_KEY)
+            .remove(GUIDED_DEVICE_NAME_KEY)
+            .remove(GUIDED_SETUP_COMPLETE_KEY)
+            .apply()
+    }
+
+    private fun encodeTaskCategories(categories: Map<Long, String>): Set<String> {
+        return categories.map { (taskId, category) -> "$taskId=$category" }.toSet()
     }
 }

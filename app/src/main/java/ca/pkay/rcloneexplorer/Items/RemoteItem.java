@@ -61,6 +61,7 @@ public class RemoteItem implements Comparable<RemoteItem>, Parcelable {
     public static final int YANDEX = 32;
     public static final int HTTP = 33;
     public static final int PREMIUMIZEME = 34;
+    public static final int SMB = 35;
 
     private String name;
     @Deprecated
@@ -335,6 +336,8 @@ public class RemoteItem implements Comparable<RemoteItem>, Parcelable {
                 return S3;
             case "sftp":
                 return SFTP;
+            case "smb":
+                return SMB;
             case "union":
                 return UNION;
             case "webdav":

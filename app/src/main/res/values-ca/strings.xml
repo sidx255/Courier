@@ -385,10 +385,14 @@
     </plurals>
     <plurals name="worker_deleting_success_message">
         <item quantity="zero">No s\'ha suprimit res.</item>
+        <item quantity="one">S\'ha suprimit %s element!</item>
+        <item quantity="many">S\'han suprimit %s elements!</item>
         <item quantity="other">%s s\'ha suprimit!</item>
     </plurals>
     <plurals name="worker_move_success_message">
         <item quantity="zero">No s\'ha mogut res.</item>
+        <item quantity="one">S\'ha mogut %s element!</item>
+        <item quantity="many">S\'han mogut %s elements!</item>
         <item quantity="other">%s s\'ha mogut!</item>
     </plurals>
     <plurals name="worker_download_success_message">
@@ -596,4 +600,8 @@
     <string name="pref_proxy_password">Contrasenya</string>
     <string name="intro_update_checks_title">Notificacions d\'actualització</string>
     <string name="intro_update_checks_description">Si vols rebre actualitzacions pots habilitar l\'interruptor que hi ha a sota! Quan hi hagi una actualització t\'ho farem saber i podràs triar si instal·lar-la o no.</string>
+    <string name="widget_backup_safe">✓ Còpia feta · %1$s</string>
+    <string name="widget_backup_attention">La còpia necessita atenció</string>
+    <string name="widget_backup_never">A punt per a la primera còpia</string>
+    <string name="widget_backup_setup">Configura Courier</string>
 </resources>

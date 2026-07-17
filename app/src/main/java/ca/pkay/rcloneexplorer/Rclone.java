@@ -40,6 +40,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -369,6 +374,166 @@ public class Rclone {
             }
         }
         return fileItemList;
+    }
+
+    @Nullable
+    public JSONObject getPathStats(RemoteItem remoteItem, String remotePath) {
+        String[] command = createCommandWithOptions("size", getRemoteSection(remoteItem, remotePath), "--json");
+        try {
+            BoundedProcessResult result = runBounded(command, 30);
+            return result.completed && result.exitCode == 0
+                    ? new JSONObject(result.output)
+                    : null;
+        } catch (IOException | InterruptedException | JSONException e) {
+            if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+            FLog.e(TAG, "getPathStats: could not read remote size", e);
+            return null;
+        }
+    }
+
+    public boolean isPathAccessible(RemoteItem remoteItem, String remotePath) {
+        return checkPathAccessible(remoteItem, remotePath).isAccessible();
+    }
+
+    public PathAccessResult checkPathAccessible(RemoteItem remoteItem, String remotePath) {
+        String[] command = createCommandWithOptions(
+                "lsjson",
+                getRemoteSection(remoteItem, remotePath),
+                "--stat"
+        );
+        try {
+            BoundedProcessResult result = runBounded(command, 20);
+            return new PathAccessResult(
+                    result.completed && result.exitCode == 0,
+                    !result.completed,
+                    result.error
+            );
+        } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+            FLog.e(TAG, "isPathAccessible: could not stat remote path", e);
+            return new PathAccessResult(false, false, e.getMessage() == null ? "" : e.getMessage());
+        }
+    }
+
+    @Nullable
+    public HashMap<String, Long> getPathSizes(RemoteItem remoteItem, String remotePath, List<String> paths) {
+        if (paths.isEmpty()) return new HashMap<>();
+        File filesFrom = null;
+        try {
+            filesFrom = File.createTempFile("courier-photo-paths-", ".txt", context.getCacheDir());
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(filesFrom))) {
+                for (String path : paths) {
+                    writer.write(path);
+                    writer.newLine();
+                }
+            }
+            String[] command = createCommandWithOptions(
+                    "lsjson",
+                    getRemoteSection(remoteItem, remotePath),
+                    "--recursive",
+                    "--files-only",
+                    "--files-from-raw",
+                    filesFrom.getAbsolutePath()
+            );
+            BoundedProcessResult result = runBounded(command, 30);
+            if (!result.completed || result.exitCode != 0) return null;
+            JSONArray entries = new JSONArray(result.output);
+            HashMap<String, Long> existing = new HashMap<>();
+            for (int index = 0; index < entries.length(); index++) {
+                JSONObject entry = entries.getJSONObject(index);
+                String path = entry.optString("Path", "");
+                if (!path.isEmpty()) existing.put(path.toLowerCase(java.util.Locale.ROOT), entry.optLong("Size", -1L));
+            }
+            return existing;
+        } catch (IOException | InterruptedException | JSONException e) {
+            if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+            FLog.e(TAG, "getPathSizes: could not compare recent media", e);
+            return null;
+        } finally {
+            if (filesFrom != null && !filesFrom.delete()) filesFrom.deleteOnExit();
+        }
+    }
+
+    private BoundedProcessResult runBounded(String[] command, int timeoutSeconds)
+            throws IOException, InterruptedException {
+        Process process = getRuntimeProcess(command, getListingEnv());
+        ScheduledExecutorService timeoutExecutor = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "courier-rclone-timeout");
+            thread.setDaemon(true);
+            return thread;
+        });
+        StringBuilder output = new StringBuilder();
+        StringBuilder error = new StringBuilder();
+        AtomicBoolean timedOut = new AtomicBoolean(false);
+        ScheduledFuture<?> timeout = timeoutExecutor.schedule(() -> {
+            timedOut.set(true);
+            process.destroy();
+        }, timeoutSeconds, TimeUnit.SECONDS);
+        Thread stdoutReader = streamReader(process.getInputStream(), output, "courier-rclone-stdout");
+        Thread stderrReader = streamReader(process.getErrorStream(), error, "courier-rclone-stderr");
+        try {
+            stdoutReader.start();
+            stderrReader.start();
+            int exitCode = process.waitFor();
+            stdoutReader.join();
+            stderrReader.join();
+            timeout.cancel(false);
+            return new BoundedProcessResult(!timedOut.get(), exitCode, output.toString(), error.toString());
+        } finally {
+            timeoutExecutor.shutdownNow();
+        }
+    }
+
+    private Thread streamReader(InputStream stream, @Nullable StringBuilder target, String name) {
+        Thread readerThread = new Thread(() -> {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (target != null) target.append(line);
+                }
+            } catch (IOException ignored) {
+            }
+        }, name);
+        readerThread.setDaemon(true);
+        return readerThread;
+    }
+
+    private static final class BoundedProcessResult {
+        private final boolean completed;
+        private final int exitCode;
+        private final String output;
+        private final String error;
+
+        private BoundedProcessResult(boolean completed, int exitCode, String output, String error) {
+            this.completed = completed;
+            this.exitCode = exitCode;
+            this.output = output;
+            this.error = error;
+        }
+    }
+
+    public static final class PathAccessResult {
+        private final boolean accessible;
+        private final boolean timedOut;
+        private final String error;
+
+        private PathAccessResult(boolean accessible, boolean timedOut, String error) {
+            this.accessible = accessible;
+            this.timedOut = timedOut;
+            this.error = error;
+        }
+
+        public boolean isAccessible() {
+            return accessible;
+        }
+
+        public boolean isTimedOut() {
+            return timedOut;
+        }
+
+        public String getError() {
+            return error;
+        }
     }
 
     public List<RemoteItem> getRemotes() {

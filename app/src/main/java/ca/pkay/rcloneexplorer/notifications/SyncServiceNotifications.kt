@@ -4,15 +4,21 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.preference.PreferenceManager
 import androidx.work.WorkManager
 import ca.pkay.rcloneexplorer.BroadcastReceivers.SyncRestartAction
+import ca.pkay.rcloneexplorer.Activities.GuidedSetupActivity
+import ca.pkay.rcloneexplorer.Activities.MainActivity
 import ca.pkay.rcloneexplorer.R
 import ca.pkay.rcloneexplorer.util.FLog
 import ca.pkay.rcloneexplorer.util.NotificationUtils
+import ca.pkay.rcloneexplorer.util.AppMode
+import ca.pkay.rcloneexplorer.util.RcloneErrorMapper
 import ca.pkay.rcloneexplorer.workmanager.SyncWorker
+import ca.pkay.rcloneexplorer.workmanager.SyncOperation
 import ca.pkay.rcloneexplorer.workmanager.SyncWorker.Companion.EXTRA_TASK_ID
 import java.util.UUID
 
@@ -54,14 +60,16 @@ class SyncServiceNotifications(var mContext: Context) {
         title: String,
         content: String,
         notificationId: Int,
-        taskid: Long
+        taskid: Long,
+        action: RcloneErrorMapper.Action = RcloneErrorMapper.Action.RETRY,
+        actionLabel: Int = R.string.error_action_retry
     ) {
         if(!useReports()){
-            showFailedNotification(content, notificationId, taskid)
+            showFailedNotification(content, notificationId, taskid, action, actionLabel)
             return
         }
         if(mReportManager.getFailures()<=1) {
-            showFailedNotification(content, notificationId, taskid)
+            showFailedNotification(content, notificationId, taskid, action, actionLabel)
             mReportManager.lastFailedNotification(notificationId)
             mReportManager.addToFailureReport(title, content)
         } else {
@@ -73,12 +81,34 @@ class SyncServiceNotifications(var mContext: Context) {
     fun showFailedNotification(
         content: String,
         notificationId: Int,
-        taskid: Long
+        taskid: Long,
+        action: RcloneErrorMapper.Action = RcloneErrorMapper.Action.RETRY,
+        actionLabel: Int = R.string.error_action_retry
     ) {
-        val i = Intent(mContext, SyncRestartAction::class.java)
-        i.putExtra(EXTRA_TASK_ID, taskid)
-
-        val retryPendingIntent = PendingIntent.getBroadcast(mContext, taskid.toInt(), i, GenericSyncNotification.getFlags())
+        val actionIntent = when (action) {
+            RcloneErrorMapper.Action.RETRY -> Intent(mContext, SyncRestartAction::class.java)
+                .putExtra(EXTRA_TASK_ID, taskid)
+            RcloneErrorMapper.Action.EDIT_CONNECTION -> {
+                if (AppMode.isSimpleMode(mContext)) {
+                    Intent(mContext, GuidedSetupActivity::class.java)
+                        .putExtra(GuidedSetupActivity.EXTRA_MODE, GuidedSetupActivity.MODE_CONNECTION)
+                } else {
+                    Intent(mContext, MainActivity::class.java)
+                }
+            }
+            RcloneErrorMapper.Action.CHECK_NETWORK -> Intent(Settings.ACTION_WIRELESS_SETTINGS)
+            RcloneErrorMapper.Action.REPAIR -> Intent(mContext, SyncRestartAction::class.java)
+                .putExtra(EXTRA_TASK_ID, taskid)
+                .putExtra(SyncWorker.TASK_OPERATION, SyncOperation.REPAIR_DEEP.name)
+            else -> Intent(mContext, MainActivity::class.java)
+        }
+        val actionPendingIntent = if (
+            action == RcloneErrorMapper.Action.RETRY || action == RcloneErrorMapper.Action.REPAIR
+        ) {
+            PendingIntent.getBroadcast(mContext, taskid.toInt(), actionIntent, GenericSyncNotification.getFlags())
+        } else {
+            PendingIntent.getActivity(mContext, taskid.toInt(), actionIntent, GenericSyncNotification.getFlags())
+        }
         val builder = NotificationCompat.Builder(mContext, CHANNEL_FAIL_ID)
             .setSmallIcon(R.drawable.ic_twotone_cloud_error_24)
             .setContentTitle(mContext.getString(R.string.operation_failed))
@@ -88,11 +118,9 @@ class SyncServiceNotifications(var mContext: Context) {
             )
             .setGroup(OPERATION_FAILED_GROUP)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(
-                R.drawable.ic_refresh,
-                mContext.getString(R.string.retry_failed_sync),
-                retryPendingIntent
-            )
+        if (action != RcloneErrorMapper.Action.NONE && actionLabel != 0) {
+            builder.addAction(R.drawable.ic_refresh, mContext.getString(actionLabel), actionPendingIntent)
+        }
         NotificationUtils.createNotification(mContext, notificationId, builder.build())
     }
     fun showCancelledNotificationOrReport(

@@ -18,14 +18,18 @@ import ca.pkay.rcloneexplorer.Items.Task
 import ca.pkay.rcloneexplorer.Log2File
 import ca.pkay.rcloneexplorer.R
 import ca.pkay.rcloneexplorer.Rclone
+import ca.pkay.rcloneexplorer.guided.GuidedBackupStatusStore
+import ca.pkay.rcloneexplorer.guided.GuidedVerificationStatusStore
 import ca.pkay.rcloneexplorer.notifications.GenericSyncNotification
 import ca.pkay.rcloneexplorer.notifications.ReportNotifications
 import ca.pkay.rcloneexplorer.notifications.SyncServiceNotifications
 import ca.pkay.rcloneexplorer.notifications.SyncServiceNotifications.Companion.GROUP_ID
 import ca.pkay.rcloneexplorer.notifications.support.StatusObject
 import ca.pkay.rcloneexplorer.util.FLog
+import ca.pkay.rcloneexplorer.util.RcloneErrorMapper
 import ca.pkay.rcloneexplorer.util.SyncLog
 import ca.pkay.rcloneexplorer.util.WifiConnectivitiyUtil
+import ca.pkay.rcloneexplorer.widgets.BackupStatusWidget
 import kotlinx.serialization.json.Json
 import org.json.JSONException
 import org.json.JSONObject
@@ -43,6 +47,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         const val TASK_ID = "TASK_ID"
         const val TASK_EPHEMERAL = "TASK_EPHEMERAL"
         const val TASK_OPERATION = "TASK_OPERATION"
+        const val TASK_REQUIRES_CHARGING = "TASK_REQUIRES_CHARGING"
         private const val TAG = "SyncWorker"
 
         //those Extras do not follow the above schema, because they are exposed to external applications
@@ -83,6 +88,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
     private var endNotificationAlreadyPosted = false
     private var silentRun = false
     private val ongoingNotificationID = Random().nextInt()
+    private val mRequiresCharging = inputData.getBoolean(TASK_REQUIRES_CHARGING, false)
 
     private var mWakeLock: PowerManager.WakeLock? = null
     private var mWifiLock: WifiManager.WifiLock? = null
@@ -452,11 +458,32 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         var content = mContext.getString(R.string.operation_failed_unknown, mTitle)
         when (failureReason) {
             FAILURE_REASON.NO_FAILURE -> {
+                recordGuidedOutcome(GuidedBackupStatusStore.OUTCOME_SUCCESS)
+                recordGuidedVerification()
+                recordGuidedRepair(GuidedVerificationStatusStore.REPAIR_SUCCESS)
                 showSuccessNotification(notificationId)
-                followupTask(mTask.onSuccessFollowup)
+                if (mOperation == SyncOperation.TRANSFER) {
+                    if (mTask.onSuccessFollowup == null || mTask.onSuccessFollowup == -1L) {
+                        BackupStatusWidget.updateAll(mContext)
+                    }
+                    followupTask(mTask.onSuccessFollowup)
+                }
                 return
             }
             FAILURE_REASON.CANCELLED -> {
+                recordGuidedOutcome(GuidedBackupStatusStore.OUTCOME_CANCELLED)
+                if (mOperation == SyncOperation.VERIFY_DEEP) {
+                    GuidedVerificationStatusStore.record(
+                        mContext,
+                        mTask.id,
+                        GuidedVerificationStatusStore.OUTCOME_CANCELLED,
+                        0
+                    )
+                }
+                recordGuidedRepair(GuidedVerificationStatusStore.REPAIR_FAILED)
+                if (mOperation == SyncOperation.TRANSFER) {
+                    BackupStatusWidget.updateAll(mContext)
+                }
                 showCancelledNotification(notificationId)
                 endNotificationAlreadyPosted = true
                 return
@@ -477,10 +504,55 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
                 content = mContext.getString(R.string.operation_failed_unknown_rclone_error, mTitle)
             }
         }
-        followupTask(mTask.onFailFollowup)
+        recordGuidedOutcome(GuidedBackupStatusStore.OUTCOME_FAILED)
+        if (mOperation == SyncOperation.VERIFY_DEEP) {
+            GuidedVerificationStatusStore.record(
+                mContext,
+                mTask.id,
+                GuidedVerificationStatusStore.OUTCOME_FAILED,
+                0
+            )
+        }
+        recordGuidedRepair(GuidedVerificationStatusStore.REPAIR_FAILED)
+        if (mOperation == SyncOperation.TRANSFER) {
+            if (mTask.onFailFollowup == null || mTask.onFailFollowup == -1L) {
+                BackupStatusWidget.updateAll(mContext)
+            }
+            followupTask(mTask.onFailFollowup)
+        }
         showFailNotification(notificationId, content)
         endNotificationAlreadyPosted = true
         finishWork()
+    }
+
+    private fun recordGuidedOutcome(outcome: String) {
+        if (mOperation != SyncOperation.TRANSFER) return
+        GuidedBackupStatusStore.record(
+            mContext,
+            mTask.id,
+            outcome,
+            statusObject.mStats.optLong("bytes", 0L),
+            statusObject.getTransfers()
+        )
+    }
+
+    private fun recordGuidedVerification() {
+        if (mOperation != SyncOperation.VERIFY_DEEP) return
+        GuidedVerificationStatusStore.record(
+            mContext,
+            mTask.id,
+            if (mVerifyDifferences.isEmpty()) {
+                GuidedVerificationStatusStore.OUTCOME_SAFE
+            } else {
+                GuidedVerificationStatusStore.OUTCOME_DIFFERENT
+            },
+            mVerifyDifferences.size
+        )
+    }
+
+    private fun recordGuidedRepair(outcome: String) {
+        if (mOperation != SyncOperation.REPAIR_DEEP) return
+        GuidedVerificationStatusStore.recordRepair(mContext, mTask.id, outcome)
     }
 
     private fun showCancelledNotification(notificationId: Int) {
@@ -552,18 +624,10 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
     }
 
     private fun showFailNotification(notificationId: Int, content: String, wasCancelled: Boolean = false) {
-        var text = content
-        //Todo: check if we should also add errors on success
         statusObject.printErrors()
         val errors = statusObject.getAllErrorMessages()
-        if (errors.isNotEmpty()) {
-            text += """
-                        
-                        
-                        
-                        ${statusObject.getAllErrorMessages()}
-                        """.trimIndent()
-        }
+        val userError = RcloneErrorMapper.map(mContext, errors.ifBlank { content }, content)
+        val text = userError.message
 
         var notifyTitle = mContext.getString(R.string.operation_failed)
         if (wasCancelled) {
@@ -574,7 +638,9 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
             mTitle,
             text,
             notificationId,
-            mTask.id
+            mTask.id,
+            userError.action,
+            userError.actionLabel
         )
     }
 
@@ -654,6 +720,6 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
             return
         }
         Thread.sleep(1000)
-        SyncManager(mContext).queue(followUpTaskID)
+        SyncManager(mContext).queueFollowup(followUpTaskID, mRequiresCharging)
     }
 }

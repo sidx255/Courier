@@ -518,4 +518,8 @@
     <string name="worker_move_success">移动成功</string>
     <string name="worker_download_initialtitle">下载中…</string>
     <string name="worker_upload_initialtitle">上传中…</string>
+    <string name="widget_backup_safe">✓ 已备份 · %1$s</string>
+    <string name="widget_backup_attention">备份需要处理</string>
+    <string name="widget_backup_never">可以开始首次备份</string>
+    <string name="widget_backup_setup">设置 Courier</string>
 </resources>

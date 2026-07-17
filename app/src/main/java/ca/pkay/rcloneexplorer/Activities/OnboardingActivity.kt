@@ -13,6 +13,7 @@ import androidx.core.view.WindowCompat
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import ca.pkay.rcloneexplorer.R
+import ca.pkay.rcloneexplorer.util.AppMode
 import ca.pkay.rcloneexplorer.util.PermissionManager
 import com.github.appintro.AppIntro2
 import de.felixnuesse.extract.onboarding.IdentifiableAppIntroFragment
@@ -212,7 +213,12 @@ class OnboardingActivity : AppIntro2(), SlideLeaveInterface, SlideSwitchCallback
             .putBoolean(intro_v1_12_0_completed, true)
             .putBoolean(intro_v2_5_2_completed, true)
             .apply()
-        startActivity(Intent(this, MainActivity::class.java))
+        val destination = if (AppMode.isSimpleMode(this) && !AppMode.isGuidedSetupComplete(this)) {
+            GuidedSetupActivity::class.java
+        } else {
+            MainActivity::class.java
+        }
+        startActivity(Intent(this, destination))
         finish()
     }
 

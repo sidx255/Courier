@@ -11,8 +11,10 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
+import ca.pkay.rcloneexplorer.Database.DatabaseHandler
 import ca.pkay.rcloneexplorer.Items.Task
 import ca.pkay.rcloneexplorer.Items.Trigger
+import ca.pkay.rcloneexplorer.util.AppMode
 import java.util.Random
 import java.util.concurrent.TimeUnit
 
@@ -22,10 +24,21 @@ class SyncManager(private var mContext: Context) {
         private const val UNIQUE_TASK_PREFIX = "sync_task_"
         private const val UNIQUE_VERIFY_PREFIX = "sync_verify_"
         private const val UNIQUE_EPHEMERAL_PREFIX = "sync_ephemeral_"
+
+        @JvmStatic
+        fun transferWorkName(taskId: Long): String = UNIQUE_TASK_PREFIX + taskId
+
+        @JvmStatic
+        fun verifyWorkName(taskId: Long): String = UNIQUE_VERIFY_PREFIX + taskId
     }
 
     fun queue(trigger: Trigger) {
-        queue(trigger.triggerTarget)
+        queue(
+            trigger.triggerTarget,
+            SyncOperation.TRANSFER,
+            ExistingWorkPolicy.KEEP,
+            AppMode.isGuidedTask(mContext, trigger.triggerTarget)
+        )
     }
 
     fun queue(task: Task) {
@@ -48,15 +61,26 @@ class SyncManager(private var mContext: Context) {
         queue(taskID, operation, ExistingWorkPolicy.KEEP)
     }
 
-    private fun queue(taskID: Long, operation: SyncOperation, policy: ExistingWorkPolicy) {
+    fun queueFollowup(taskID: Long, requiresCharging: Boolean) {
+        queue(taskID, SyncOperation.TRANSFER, ExistingWorkPolicy.KEEP, requiresCharging)
+    }
+
+    private fun queue(
+        taskID: Long,
+        operation: SyncOperation,
+        policy: ExistingWorkPolicy,
+        requiresCharging: Boolean = false
+    ) {
+        val requiresUnmetered = DatabaseHandler(mContext).getTask(taskID)?.wifionly == true
         val data = Data.Builder()
         data.putLong(SyncWorker.TASK_ID, taskID)
         data.putString(SyncWorker.TASK_OPERATION, operation.name)
+        data.putBoolean(SyncWorker.TASK_REQUIRES_CHARGING, requiresCharging)
 
         val uploadWorkRequest = OneTimeWorkRequestBuilder<SyncWorker>()
             .setInputData(data.build())
             .addTag(taskID.toString())
-            .setConstraints(buildConstraints())
+            .setConstraints(buildConstraints(requiresCharging, requiresUnmetered))
             .setBackoffCriteria(
                 BackoffPolicy.LINEAR,
                 WorkRequest.MIN_BACKOFF_MILLIS,
@@ -79,7 +103,7 @@ class SyncManager(private var mContext: Context) {
         val uploadWorkRequest = OneTimeWorkRequestBuilder<SyncWorker>()
             .setInputData(data.build())
             .addTag(task.id.toString())
-            .setConstraints(buildConstraints())
+            .setConstraints(buildConstraints(false, task.wifionly))
             .setBackoffCriteria(
                 BackoffPolicy.LINEAR,
                 WorkRequest.MIN_BACKOFF_MILLIS,
@@ -90,9 +114,10 @@ class SyncManager(private var mContext: Context) {
         workUnique(UNIQUE_EPHEMERAL_PREFIX + task.id, ExistingWorkPolicy.KEEP, uploadWorkRequest)
     }
 
-    private fun buildConstraints(): Constraints {
+    private fun buildConstraints(requiresCharging: Boolean, requiresUnmetered: Boolean): Constraints {
         return Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiredNetworkType(if (requiresUnmetered) NetworkType.UNMETERED else NetworkType.CONNECTED)
+            .setRequiresCharging(requiresCharging)
             .build()
     }
 

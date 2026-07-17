@@ -469,4 +469,8 @@
     <string name="breadcrumb_home_description">Remote-Startpunkt</string>
     <string name="breadcrumb_next_description">Nächster Breadcrumb-Pfeil-Indikator</string>
     <string name="remote_creation_next_step">Nächster Schritt</string>
+    <string name="widget_backup_safe">✓ Gesichert · %1$s</string>
+    <string name="widget_backup_attention">Sicherung benötigt Aufmerksamkeit</string>
+    <string name="widget_backup_never">Bereit für die erste Sicherung</string>
+    <string name="widget_backup_setup">Courier einrichten</string>
 </resources>
