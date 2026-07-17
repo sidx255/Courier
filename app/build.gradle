@@ -27,15 +27,15 @@ android {
             }
         }
     }
-    ndkVersion project.properties['de.felixnuesse.extract.ndkVersion']
+    ndkVersion project.properties['com.sidx255.courier.extract.ndkVersion']
     defaultConfig {
         generatedDensities = []
         vectorDrawables.generatedDensities = []
         applicationId 'com.sidx255.courier'
         minSdkVersion 23
-        compileSdk 34
-        targetSdkVersion 34
-        versionCode 100 // last digit is reserved for ABI, only ever end on 0!
+        compileSdk 35
+        targetSdkVersion 35
+        versionCode 110 // last digit is reserved for ABI, only ever end on 0!
         versionName '0.1.0'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField "java.lang.String", "CLI", System.getenv('RCX_BUILD_CLI') ? System.getenv('RCX_BUILD_CLI') : "\"c03129b6-b09f-9cb4-8fcd-7f143b8f94ef\""
@@ -230,7 +230,4 @@ dependencies {
 
     // Splash screen
     implementation("androidx.core:core-splashscreen:1.0.1")
-
-    //Updates
-    implementation 'com.github.Sharkaboi:AppUpdateChecker:v1.0.5'
 }

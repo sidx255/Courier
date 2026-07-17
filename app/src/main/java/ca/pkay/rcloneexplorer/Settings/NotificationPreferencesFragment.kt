@@ -5,12 +5,10 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import android.widget.Toast
 import androidx.preference.Preference
-import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import ca.pkay.rcloneexplorer.R
-import de.felixnuesse.extract.settings.preferences.ButtonPreference
-import de.felixnuesse.extract.updates.UpdateChecker
+import com.sidx255.courier.extract.settings.preferences.ButtonPreference
 import es.dmoral.toasty.Toasty
 
 
@@ -23,10 +21,6 @@ class NotificationPreferencesFragment : PreferenceFragmentCompat(),
         setPreferencesFromResource(R.xml.settings_notification_preferences, rootKey)
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
         requireActivity().title = getString(R.string.notifications_pref_title)
-
-        if(UpdateChecker(requireContext()).isManagedInstallation()) {
-            findPreference<PreferenceCategory>("TempKeyUpdateGroup")?.isVisible = false
-        }
 
         val notificationSettings = findPreference<Preference>("TempKeyNotificationSettings") as ButtonPreference
         notificationSettings.setButtonText(getString(R.string.open_notification_settings_button))
@@ -60,9 +54,6 @@ class NotificationPreferencesFragment : PreferenceFragmentCompat(),
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        if(key == getString(R.string.pref_key_app_updates)) {
-            UpdateChecker(requireContext()).schedule()
-        }
     }
 
 }

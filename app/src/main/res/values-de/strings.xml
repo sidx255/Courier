@@ -259,7 +259,7 @@
     <string name="pref_open_all_files_setting_label">MANAGE_EXTERNAL_STORAGE-Berechtigung erteilen</string>
     <string name="pref_open_all_files_setting_summary">EXPERIMENTELL: Funktioniert nur auf Android R (Android 11)</string>
     <string name="pref_saf_vcp_local_pretend_enable">Als “local” deklarieren</string>
-    <string name="pref_saf_vcp_local_pretend_summary">Einige Apps (z.B. Google Docs) zeigen Round Sync sonst nicht an.</string>
+    <string name="pref_saf_vcp_local_pretend_summary">Ermöglicht einigen Apps wie Google Docs den Zugriff auf Dateien.</string>
     <string name="pref_saf_vcp_grant_all_enable">Jeder App Zugriff auf Remotes geben</string>
     <string name="pref_saf_vcp_grant_all_summary">GEFÄHRLICH: Jede App kann damit jeden Pfad deiner Remotes lesen und schreiben.</string>
     <string name="virtual_content_provider_exception_advice">Prüfe die Netzwerkverbindung</string>
@@ -284,7 +284,7 @@
     <string name="intro_welcome_description">Courier ist ein robustes, rclone-basiertes Werkzeug für Dateiübertragungen und Migrationen.</string>
     <string name="intro_storage_title">Speicherzugriff</string>
     <string name="intro_community_title">Community</string>
-    <string name="intro_community_description">Round Sync wird von und für seine Community entwickelt. Hilf mit, indem du automatisch Fehlerberichte sendest. Auf felixnuesse.de/privacy-roundsync erfährst du mehr.</string>
+    <string name="intro_community_description">Courier wird von sidx255 betreut und offen unter github.com/sidx255/Courier entwickelt.</string>
     <string name="pref_send_sigquit_title">Debug: Mit SIGQUIT beenden</string>
     <string name="pref_send_sigquit_summary">Alle rclone-Prozesse mit kill -SIGQUIT beenden. Rclone-Protokollierung muss aktiviert sein.</string>
     <string name="sync_direction_local_remote">Synchronisiere Lokal zu entferntem Speicher</string>
@@ -350,8 +350,8 @@
     <string name="triggeractivity_trigger_not_found">Auslöser nicht gefunden!</string>
     <string name="task_item_label_from">Von:</string>
     <string name="task_item_label_to">Zu:</string>
-    <string name="abi_not_supported_arm_downgrade">Diese Round Sync-Version wird nicht unterstützt. Eventuell funktioniert die armeabi-v7a-APK von github.com/newhinton/Round-Sync."</string>
-    <string name="abi_not_supported">Diese Round Sync-Version wird auf dem Gerät nicht unterstützt.</string>
+    <string name="abi_not_supported_arm_downgrade">Dieser Courier-Build ist nicht mit deinem Gerät kompatibel. Versuche die armeabi-v7a-APK von github.com/sidx255/Courier/releases/latest.</string>
+    <string name="abi_not_supported">Diese Courier-Version wird auf deinem Gerät nicht unterstützt.</string>
     <string name="sync_notification_transferred">%s von %s übertragen</string>
     <string name="sync_notification_speed">"Geschwindigkeit:   %s"</string>
     <string name="sync_notification_remaining">"Verbleibend:         %s"</string>

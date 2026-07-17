@@ -114,7 +114,7 @@
     <string name="intro_storage_title">存储访问</string>
     <string name="intro_storage_description">Courier 依赖于 Rclone，需要您的授权才能访问设备上的文件。请在出现提示时授予存储访问权限，否则应用可能无法正常工作。</string>
     <string name="intro_community_title">社区</string>
-    <string name="intro_community_description">Round Sync 是一个社区驱动的项目。为了贡献和改进应用，您可以启用匿名错误报告。了解更多信息，请访问 felixnuesse.de/privacy-roundsync</string>
+    <string name="intro_community_description">Courier 由 sidx255 维护，并在 github.com/sidx255/Courier 上公开开发。</string>
     <string name="file_access">文件访问</string>
     <string name="look_and_feel">界面外观</string>
     <string name="dark_theme">深色主题</string>
@@ -363,8 +363,8 @@
     </plurals>
 
     <string name="sync_notification_short">%s 共 %s ，剩余 %s</string>
-    <string name="abi_not_supported_arm_downgrade">不幸的是，此 Round Sync 版本与您的设备不兼容。试试 armeabi-v7a 的 APK， 从 github.com/newhinton/Round-Sync/releases/latest 下载。</string>
-    <string name="abi_not_supported">您的设备不支持此版本的 Round Sync。</string>
+    <string name="abi_not_supported_arm_downgrade">此 Courier 版本与您的设备不兼容。请尝试从 github.com/sidx255/Courier/releases/latest 下载 armeabi-v7a APK。</string>
+    <string name="abi_not_supported">您的设备不支持此版本的 Courier。</string>
     <string name="trigger">触发器</string>
     <string name="title_activity_trigger">触发器</string>
     <string name="enabled">启用</string>

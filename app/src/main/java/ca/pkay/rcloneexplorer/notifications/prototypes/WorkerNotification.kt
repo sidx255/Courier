@@ -18,8 +18,8 @@ import ca.pkay.rcloneexplorer.util.FLog
 import ca.pkay.rcloneexplorer.util.NotificationUtils
 import ca.pkay.rcloneexplorer.workmanager.SyncWorker
 import ca.pkay.rcloneexplorer.workmanager.SyncWorker.Companion.EXTRA_TASK_ID
-import de.felixnuesse.extract.extensions.tag
-import de.felixnuesse.extract.notifications.DiscardChannels
+import com.sidx255.courier.extract.extensions.tag
+import com.sidx255.courier.extract.notifications.DiscardChannels
 import java.util.UUID
 
 abstract class WorkerNotification(var mContext: Context) {
@@ -30,7 +30,7 @@ abstract class WorkerNotification(var mContext: Context) {
     open val CHANNEL_SUCCESS_ID = this.CHANNEL_ID + "_success"
     open val CHANNEL_FAIL_ID = this.CHANNEL_ID + "_fail"
 
-    val GROUP_ID = "de.felixnuesse.extract.taskworker.group"
+    val GROUP_ID = "com.sidx255.courier.extract.taskworker.group"
     val GROUP_DESCRIPTION = mContext.getString(R.string.workernotification_group_description)
 
 

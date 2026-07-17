@@ -114,7 +114,7 @@
     <string name="intro_storage_title">Accés a l\'emmagatzematge</string>
     <string name="intro_storage_description">Courier enllaça amb rclone i li cal permís per accedir a tots els fitxers. Concedeix permís d\'accés a l\'emmagatzematge quan t\'ho demani, si no l\'aplicació no funcionarà bé.</string>
     <string name="intro_community_title">Comunitat</string>
-    <string name="intro_community_description">Round Sync és un projecte desenvolupat per la comunitat. Per contribuir a millorar l\'aplicació pots habilitar els informes anònims sobre els errors. Si vols més informació vés a felixnuesse.de/privacy-roundsync.</string>
+    <string name="intro_community_description">Courier és mantingut per sidx255 i es desenvolupa obertament a github.com/sidx255/Courier.</string>
 
     <string name="file_access">Accés als fitxers</string>
     <string name="look_and_feel">Aparença i Comportament</string>
@@ -406,8 +406,8 @@
         <item quantity="other">%s fitxers s\'han pujat!</item>
     </plurals>
 
-    <string name="abi_not_supported_arm_downgrade">Per desgràcia aquesta versió de Round Sync no és compatible amb el teu dispositiu. Intenta-ho amb l\'armeabi-v7a APK de github.com/newhinton/Round-Sync/releases/latest.</string>
-    <string name="abi_not_supported">El teu dispositiu no és compatible amb aquest versió de Round Sync.</string>
+    <string name="abi_not_supported_arm_downgrade">Aquesta versió de Courier no és compatible amb el teu dispositiu. Prova l\'APK armeabi-v7a de github.com/sidx255/Courier/releases/latest.</string>
+    <string name="abi_not_supported">El teu dispositiu no és compatible amb aquesta versió de Courier.</string>
     <string name="trigger">Disparadors</string>
     <string name="title_activity_trigger">Disparadors</string>
     <string name="enabled">Habilitat</string>

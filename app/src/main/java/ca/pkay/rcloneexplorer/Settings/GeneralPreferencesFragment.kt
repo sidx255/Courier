@@ -20,9 +20,9 @@ import ca.pkay.rcloneexplorer.R
 import ca.pkay.rcloneexplorer.Rclone
 import ca.pkay.rcloneexplorer.util.AppMode
 import ca.pkay.rcloneexplorer.util.FLog
-import de.felixnuesse.extract.extensions.TAG
-import de.felixnuesse.extract.settings.language.LanguagePicker
-import de.felixnuesse.extract.settings.preferences.FilesizePreference
+import com.sidx255.courier.extract.extensions.TAG
+import com.sidx255.courier.extract.settings.language.LanguagePicker
+import com.sidx255.courier.extract.settings.preferences.FilesizePreference
 import es.dmoral.toasty.Toasty
 
 class GeneralPreferencesFragment : PreferenceFragmentCompat() {

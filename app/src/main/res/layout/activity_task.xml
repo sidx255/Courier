@@ -41,7 +41,7 @@
             android:paddingStart="16dp"
             android:paddingEnd="16dp">
 
-            <de.felixnuesse.ui.BreadcrumbView
+            <com.sidx255.courier.ui.BreadcrumbView
                 android:id="@+id/breadcrumb_view"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"

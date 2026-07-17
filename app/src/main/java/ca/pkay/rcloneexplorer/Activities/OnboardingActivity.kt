@@ -16,11 +16,9 @@ import ca.pkay.rcloneexplorer.R
 import ca.pkay.rcloneexplorer.util.AppMode
 import ca.pkay.rcloneexplorer.util.PermissionManager
 import com.github.appintro.AppIntro2
-import de.felixnuesse.extract.onboarding.IdentifiableAppIntroFragment
-import de.felixnuesse.extract.onboarding.IdentifiableSwitchAppIntroFragment
-import de.felixnuesse.extract.onboarding.SlideLeaveInterface
-import de.felixnuesse.extract.onboarding.SlideSwitchCallback
-import de.felixnuesse.extract.updates.UpdateChecker
+import com.sidx255.courier.extract.onboarding.IdentifiableAppIntroFragment
+import com.sidx255.courier.extract.onboarding.SlideLeaveInterface
+import com.sidx255.courier.extract.onboarding.SlideSwitchCallback
 
 
 class OnboardingActivity : AppIntro2(), SlideLeaveInterface, SlideSwitchCallback {
@@ -40,12 +38,10 @@ class OnboardingActivity : AppIntro2(), SlideLeaveInterface, SlideSwitchCallback
         private const val SLIDE_ID_BATTERY_OPTIMIZATION = "SLIDE_ID_BATTERY_OPTIMIZATION"
         private const val SLIDE_ID_ALARMS = "SLIDE_ID_ALARMS"
         private const val SLIDE_ID_SUCCESS = "SLIDE_ID_SUCCESS"
-        private const val SLIDE_ID_UPDATECHECK = "SLIDE_ID_UPDATECHECK"
 
         fun completedIntro(context: Context): Boolean {
             val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-            // if it is a managed installation, dont show the intro screen for updates.
-            return prefs.getBoolean(latest_intro, UpdateChecker(context).isManagedInstallation())
+            return prefs.getBoolean(latest_intro, false)
         }
     }
 
@@ -78,15 +74,6 @@ class OnboardingActivity : AppIntro2(), SlideLeaveInterface, SlideSwitchCallback
 
 
         val v1_12_0 = mPreferences.getBoolean(intro_v1_12_0_completed, false)
-        val v2_5_2 = mPreferences.getBoolean(intro_v2_5_2_completed, false)
-        // fix Opt-In updatecheck in 2.5.1
-        // i forcefully reset the appupdate check, so that it will be off, going forward.
-        // later we ask for permission again.
-
-        if(v1_12_0 && !v2_5_2) {
-            // only if the app has been set up, and before v2.5.2.
-            mPreferences.edit().putBoolean(getString(R.string.pref_key_app_updates), false).apply()
-        }
 
         if (!v1_12_0) {
             addSlide(
@@ -180,21 +167,6 @@ class OnboardingActivity : AppIntro2(), SlideLeaveInterface, SlideSwitchCallback
             switchColor()
         }
 
-        val updatesAlreadyEnabled = mPreferences.getBoolean(getString(R.string.pref_key_app_updates), false)
-        if(!UpdateChecker(this.applicationContext).isManagedInstallation() && !updatesAlreadyEnabled) {
-            addSlide(
-                IdentifiableSwitchAppIntroFragment.createInstance(
-                    title = getString(R.string.intro_update_checks_title),
-                    description = getString(R.string.intro_update_checks_description),
-                    imageDrawable = R.drawable.undraw_update,
-                    backgroundColorRes = color,
-                    id = SLIDE_ID_UPDATECHECK,
-                    callback = this,
-                    switchCallback = this
-                ))
-            switchColor()
-        }
-
         addSlide(
             IdentifiableAppIntroFragment.createInstance(
                 title = getString(R.string.intro_success),
@@ -271,11 +243,5 @@ class OnboardingActivity : AppIntro2(), SlideLeaveInterface, SlideSwitchCallback
     }
 
     override fun switchChanged(id: String, isChecked: Boolean) {
-        when(id) {
-            SLIDE_ID_UPDATECHECK -> {
-                mPreferences.edit().putBoolean(getString(R.string.pref_key_app_updates), isChecked).apply()
-            }
-            else -> {}
-        }
     }
 }
