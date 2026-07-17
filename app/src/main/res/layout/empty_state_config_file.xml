@@ -7,49 +7,47 @@
     android:paddingLeft="16dp"
     android:paddingRight="16dp">
 
-    <RelativeLayout
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center">
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp">
 
         <ImageView
             android:id="@+id/empty_state_ic"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentTop="true"
-            android:layout_centerHorizontal="true"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
             android:contentDescription="@string/empty_state_icon"
-            android:src="@drawable/ic_empty_box" />
+            android:src="@drawable/ic_empty_box"
+            app:tint="?attr/colorPrimary" />
 
         <TextView
             android:id="@+id/empty_state_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/empty_state_ic"
-            android:layout_centerHorizontal="true"
+            android:layout_marginTop="20dp"
             android:text="@string/ooops"
-            android:textSize="30sp"
-            android:textStyle="bold" />
+            android:textAppearance="@style/TextAppearance.Courier.EmptyTitle" />
 
         <TextView
             android:id="@+id/empty_state_message"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/empty_state_title"
-            android:layout_centerHorizontal="true"
             android:layout_marginTop="8dp"
             android:gravity="center"
-            android:text="@string/no_config_found" />
+            android:text="@string/no_config_found"
+            android:textAppearance="@style/TextAppearance.Courier.EmptySubtitle" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/empty_state_btn"
+            style="@style/Widget.Courier.Button.Tonal"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/empty_state_message"
-            android:layout_centerHorizontal="true"
-            android:layout_marginTop="16dp"
-            android:text="@string/import_configuration"/>
-    </RelativeLayout>
+            android:layout_marginTop="24dp"
+            android:text="@string/import_configuration" />
+    </LinearLayout>
 
     <com.leinardi.android.speeddial.SpeedDialView
         android:id="@+id/fab_empty_config"

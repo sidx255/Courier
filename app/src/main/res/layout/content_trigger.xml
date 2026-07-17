@@ -19,13 +19,12 @@
             android:orientation="vertical">
 
 
-            <androidx.cardview.widget.CardView
-                style="@style/SecondaryCardStyle"
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Courier.Card"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_margin="8dp"
-                app:cardCornerRadius="@dimen/cardCornerRadius"
-                app:contentPadding="@dimen/cardPadding">
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="6dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -36,23 +35,27 @@
                         android:id="@+id/trigger_name_label"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_margin="8dp"
+                        android:layout_marginBottom="12dp"
                         android:text="@string/trigger_name"
-                        android:textAppearance="@style/TextAppearance.AppCompat.Display1"
-                        android:textSize="24sp" />
+                        android:textAppearance="@style/TextAppearance.Courier.SectionHeader" />
 
-                    <EditText
-                        android:id="@+id/trigger_name_edit"
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:layout_marginBottom="8dp"
-                        android:hint="@string/trigger_name" />
+                        android:hint="@string/trigger_name">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/trigger_name_edit"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
                     <CheckBox
                         android:id="@+id/cb_is_enabled"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
                         android:layout_marginBottom="8dp"
                         android:checked="true"
                         android:text="@string/is_this_trigger_enabled" />
@@ -63,16 +66,15 @@
                         android:layout_height="48dp"
                         android:entries="@array/triggerTypeItems" />
                 </LinearLayout>
-            </androidx.cardview.widget.CardView>
+            </com.google.android.material.card.MaterialCardView>
 
-            <androidx.cardview.widget.CardView
+            <com.google.android.material.card.MaterialCardView
                 android:id="@+id/intervalCard"
-                style="@style/SecondaryCardStyle"
+                style="@style/Widget.Courier.Card"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_margin="8dp"
-                app:cardCornerRadius="@dimen/cardCornerRadius"
-                app:contentPadding="@dimen/cardPadding">
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="6dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -83,11 +85,9 @@
                         android:id="@+id/textView6"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_margin="8dp"
-                        android:layout_marginBottom="8dp"
+                        android:layout_marginBottom="12dp"
                         android:text="@string/task_interval"
-                        android:textAppearance="@style/TextAppearance.AppCompat.Display1"
-                        android:textSize="24sp" />
+                        android:textAppearance="@style/TextAppearance.Courier.SectionHeader" />
 
                     <Spinner
                         android:id="@+id/spinnerIntervals"
@@ -96,17 +96,15 @@
                         android:entries="@array/triggerIntervals" />
 
                 </LinearLayout>
-            </androidx.cardview.widget.CardView>
+            </com.google.android.material.card.MaterialCardView>
 
-            <androidx.cardview.widget.CardView
+            <com.google.android.material.card.MaterialCardView
                 android:id="@+id/weekdaysCard"
-                style="@style/SecondaryCardStyle"
+                style="@style/Widget.Courier.Card"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_margin="8dp"
-                android:theme="@style/SecondaryCardStyle"
-                app:cardCornerRadius="@dimen/cardCornerRadius"
-                app:contentPadding="@dimen/cardPadding">
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="6dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -117,11 +115,9 @@
                         android:id="@+id/textView3"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_margin="8dp"
-                        android:layout_marginBottom="8dp"
+                        android:layout_marginBottom="12dp"
                         android:text="@string/trigger_label_weekdays"
-                        android:textAppearance="@style/TextAppearance.AppCompat.Display1"
-                        android:textSize="24sp" />
+                        android:textAppearance="@style/TextAppearance.Courier.SectionHeader" />
 
                     <CheckBox
                         android:id="@+id/trigger_cb_monday"
@@ -173,17 +169,16 @@
                         android:checked="true"
                         android:text="@string/sunday" />
                 </LinearLayout>
-            </androidx.cardview.widget.CardView>
+            </com.google.android.material.card.MaterialCardView>
 
 
-            <androidx.cardview.widget.CardView
+            <com.google.android.material.card.MaterialCardView
                 android:id="@+id/timeCard"
-                style="@style/SecondaryCardStyle"
+                style="@style/Widget.Courier.Card"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_margin="8dp"
-                app:cardCornerRadius="@dimen/cardCornerRadius"
-                app:contentPadding="@dimen/cardPadding">
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="6dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -194,10 +189,9 @@
                         android:id="@+id/textView5"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_margin="8dp"
+                        android:layout_marginBottom="12dp"
                         android:text="@string/time"
-                        android:textAppearance="@style/TextAppearance.AppCompat.Display1"
-                        android:textSize="24sp" />
+                        android:textAppearance="@style/TextAppearance.Courier.SectionHeader" />
 
 
                     <TimePicker
@@ -207,16 +201,15 @@
                         android:timePickerMode="spinner" />
 
                 </LinearLayout>
-            </androidx.cardview.widget.CardView>
+            </com.google.android.material.card.MaterialCardView>
 
-            <androidx.cardview.widget.CardView
+            <com.google.android.material.card.MaterialCardView
                 android:id="@+id/targetCard"
-                style="@style/SecondaryCardStyle"
+                style="@style/Widget.Courier.Card"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_margin="8dp"
-                app:cardCornerRadius="@dimen/cardCornerRadius"
-                app:contentPadding="@dimen/cardPadding">
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="6dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -227,11 +220,9 @@
                         android:id="@+id/textView4"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_margin="8dp"
-                        android:layout_marginBottom="8dp"
+                        android:layout_marginBottom="12dp"
                         android:text="@string/task_to_run"
-                        android:textAppearance="@style/TextAppearance.AppCompat.Display1"
-                        android:textSize="24sp" />
+                        android:textAppearance="@style/TextAppearance.Courier.SectionHeader" />
 
                     <Spinner
                         android:id="@+id/trigger_targets"
@@ -239,7 +230,7 @@
                         android:layout_height="wrap_content" />
 
                 </LinearLayout>
-            </androidx.cardview.widget.CardView>
+            </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
 

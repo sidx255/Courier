@@ -76,6 +76,7 @@ import ca.pkay.rcloneexplorer.RuntimeConfiguration;
 import ca.pkay.rcloneexplorer.Services.StreamingService;
 import ca.pkay.rcloneexplorer.Services.TriggerService;
 import ca.pkay.rcloneexplorer.util.ActivityHelper;
+import ca.pkay.rcloneexplorer.util.AppMode;
 import ca.pkay.rcloneexplorer.util.FLog;
 import ca.pkay.rcloneexplorer.util.PermissionManager;
 import ca.pkay.rcloneexplorer.util.SharedPreferencesUtil;
@@ -119,6 +120,13 @@ public class MainActivity extends AppCompatActivity
         if(!allPermissionsGranted || !completedIntroOnce) {
             startActivity(new Intent(this, OnboardingActivity.class));
             finish();
+            return;
+        }
+
+        if (AppMode.isSimpleMode(this)) {
+            startActivity(new Intent(this, HomeActivity.class));
+            finish();
+            return;
         }
 
 

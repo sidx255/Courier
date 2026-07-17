@@ -2,6 +2,13 @@
     <string name="app_name">Courier</string>
     <string name="app_description">Rclone for Android</string>
     <string name="app_short_name">Courier</string>
+    <string name="home_setup_title">Set up your backup</string>
+    <string name="home_setup_description">Save your phone\'s photos and files to your home storage, automatically. Guided setup is coming here soon.</string>
+    <string name="home_open_advanced">Open Advanced mode</string>
+    <string name="task_quick_run">Run</string>
+    <string name="task_quick_verify">Verify</string>
+    <string name="pref_switch_to_simple_mode">Switch to Simple mode</string>
+    <string name="pref_switch_to_simple_mode_summary">A guided, automatic backup experience</string>
 
     <string name="title_activity_about">About</string>
     <string name="title_activity_changelog">Changelog</string>

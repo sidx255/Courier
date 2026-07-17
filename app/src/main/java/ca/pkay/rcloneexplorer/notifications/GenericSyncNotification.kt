@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import ca.pkay.rcloneexplorer.R
 
 class GenericSyncNotification(var mContext: Context) {
@@ -42,6 +43,7 @@ class GenericSyncNotification(var mContext: Context) {
             .setContentTitle(title)
             .setContentText(content)
             .setContentIntent(pendingIntent)
+            .setColor(ContextCompat.getColor(mContext, R.color.md_theme_light_primary))
             .setStyle(NotificationCompat.BigTextStyle().bigText(bigText.toString()))
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOnlyAlertOnce(true)

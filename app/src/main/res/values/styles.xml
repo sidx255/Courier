@@ -78,6 +78,58 @@
         <item name="android:tint">?attr/colorOnPrimaryContainer</item>
     </style>
 
+    <style name="Widget.Courier.Card" parent="Widget.Material3.CardView.Filled">
+        <item name="cardCornerRadius">20dp</item>
+        <item name="contentPadding">20dp</item>
+    </style>
+
+    <style name="Widget.Courier.Card.Outlined" parent="Widget.Material3.CardView.Outlined">
+        <item name="cardCornerRadius">20dp</item>
+        <item name="contentPadding">16dp</item>
+    </style>
+
+    <style name="Widget.Courier.Card.Elevated" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardCornerRadius">20dp</item>
+        <item name="contentPadding">16dp</item>
+    </style>
+
+    <style name="Widget.Courier.Card.ListItem" parent="Widget.Material3.CardView.Filled">
+        <item name="cardCornerRadius">18dp</item>
+        <item name="cardBackgroundColor">?attr/colorSurfaceVariant</item>
+        <item name="android:layout_marginHorizontal">12dp</item>
+        <item name="android:layout_marginVertical">6dp</item>
+    </style>
+
+    <style name="Widget.Courier.Button" parent="Widget.Material3.Button">
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+    </style>
+
+    <style name="Widget.Courier.Button.Tonal" parent="Widget.Material3.Button.TonalButton">
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+    </style>
+
+    <style name="Widget.Courier.Button.Text" parent="Widget.Material3.Button.TextButton" />
+
+    <style name="Widget.Courier.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton" />
+
+    <style name="Widget.Courier.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch" />
+
+    <style name="TextAppearance.Courier.SectionHeader" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <style name="TextAppearance.Courier.EmptyTitle" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <style name="TextAppearance.Courier.EmptySubtitle" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
     <style name="SecondaryCardStyle">
         <item name="cardBackgroundColor">?attr/colorSecondaryContainer</item>
         <item name="android:textColor">?attr/colorOnSecondaryContainer</item>

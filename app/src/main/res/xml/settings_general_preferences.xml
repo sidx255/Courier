@@ -11,6 +11,11 @@
         android:title="@string/pref_locale"
         app:summary="%s" />
 
+    <Preference
+        android:key="appModeSwitchTempKey"
+        android:title="@string/pref_switch_to_simple_mode"
+        app:summary="@string/pref_switch_to_simple_mode_summary" />
+
     <PreferenceCategory app:title="@string/preference_category_header_thumbnails">
         <SwitchPreferenceCompat
             app:defaultValue="true"

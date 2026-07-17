@@ -11,7 +11,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.Spinner
-import android.widget.Switch
+import com.google.android.material.materialswitch.MaterialSwitch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -49,12 +49,12 @@ class TaskActivity : AppCompatActivity(), FolderSelectorCallback{
     private lateinit var syncDirection: Spinner
     private lateinit var fab: FloatingActionButton
 
-    private lateinit var switchWifi: Switch
+    private lateinit var switchWifi: MaterialSwitch
 
 
     private lateinit var filterDropdown: Spinner
     private lateinit var createNewFilterButton: Button
-    private lateinit var switchDeleteExcluded: Switch
+    private lateinit var switchDeleteExcluded: MaterialSwitch
 
 
     private lateinit var onFailDropdown: Spinner

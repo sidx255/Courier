@@ -26,6 +26,8 @@ import androidx.core.content.pm.ShortcutManagerCompat;
 import androidx.core.graphics.drawable.IconCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.button.MaterialButton;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -118,6 +120,10 @@ public class TasksRecyclerViewAdapter extends RecyclerView.Adapter<TasksRecycler
         holder.fileOptions.setOnClickListener(v-> {
             showFileMenu(v, selectedTask);
         });
+
+        holder.taskActionRun.setOnClickListener(v -> startTask(selectedTask));
+        holder.taskActionVerify.setOnClickListener(v -> new SyncManager(context).queue(selectedTask, SyncOperation.VERIFY));
+        holder.taskActionEdit.setOnClickListener(v -> editTask(selectedTask));
 
     }
 
@@ -229,6 +235,9 @@ public class TasksRecyclerViewAdapter extends RecyclerView.Adapter<TasksRecycler
         final TextView fromPath;
         final ImageButton fileOptions;
         final TextView taskSyncDirection;
+        final MaterialButton taskActionRun;
+        final MaterialButton taskActionVerify;
+        final MaterialButton taskActionEdit;
 
         ViewHolder(View itemView) {
             super(itemView);
@@ -243,6 +252,9 @@ public class TasksRecyclerViewAdapter extends RecyclerView.Adapter<TasksRecycler
             this.fromPath = view.findViewById(R.id.fromPath);
             this.taskSyncDirection = view.findViewById(R.id.task_sync_direction);
             this.fileOptions = view.findViewById(R.id.file_options);
+            this.taskActionRun = view.findViewById(R.id.task_action_run);
+            this.taskActionVerify = view.findViewById(R.id.task_action_verify);
+            this.taskActionEdit = view.findViewById(R.id.task_action_edit);
         }
     }
 

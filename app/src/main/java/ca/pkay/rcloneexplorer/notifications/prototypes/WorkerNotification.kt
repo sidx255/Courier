@@ -7,6 +7,7 @@ import android.content.Intent
 import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.work.WorkManager
 import ca.pkay.rcloneexplorer.BroadcastReceivers.SyncRestartAction
 import ca.pkay.rcloneexplorer.Items.FileItem
@@ -113,6 +114,7 @@ abstract class WorkerNotification(var mContext: Context) {
         )
         val builder = NotificationCompat.Builder(mContext, CHANNEL_FAIL_ID)
                 .setSmallIcon(R.drawable.ic_twotone_cloud_error_24)
+                .setColor(ContextCompat.getColor(mContext, R.color.md_theme_light_primary))
                 .setContentTitle(serviceFailed)
                 .setContentText(content)
                 .setStyle(
@@ -142,6 +144,7 @@ abstract class WorkerNotification(var mContext: Context) {
         )
         val builder = NotificationCompat.Builder(mContext, CHANNEL_FAIL_ID)
                 .setSmallIcon(R.drawable.ic_twotone_cloud_error_24)
+                .setColor(ContextCompat.getColor(mContext, R.color.md_theme_light_primary))
                 .setContentTitle(serviceCancelled)
                 .setContentText(content)
                 .setStyle(
@@ -160,6 +163,7 @@ abstract class WorkerNotification(var mContext: Context) {
     fun showSuccessNotification(title: String, content: String, notificationId: Int) {
         val builder = NotificationCompat.Builder(mContext, CHANNEL_SUCCESS_ID)
                 .setSmallIcon(R.drawable.ic_twotone_cloud_done_24)
+                .setColor(ContextCompat.getColor(mContext, R.color.md_theme_light_primary))
                 .setContentTitle(String.format(serviceSuccess, title))
                 .setContentText(content)
                 .setGroup(SUMMARY_GROUP)
@@ -168,6 +172,7 @@ abstract class WorkerNotification(var mContext: Context) {
 
         val summaryNotification = NotificationCompat.Builder(mContext, CHANNEL_SUCCESS_ID)
                 .setSmallIcon(R.drawable.ic_twotone_cloud_done_24)
+                .setColor(ContextCompat.getColor(mContext, R.color.md_theme_light_primary))
                 .setContentTitle(String.format(serviceSuccess, title))
                 .setGroup(SUMMARY_GROUP)
                 .setGroupSummary(true)

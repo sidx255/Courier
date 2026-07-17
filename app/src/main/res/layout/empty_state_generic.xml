@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/empty_state_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:paddingHorizontal="40dp"
+    android:paddingVertical="32dp">
+
+    <ImageView
+        android:id="@+id/empty_state_icon"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:importantForAccessibility="no"
+        app:tint="?attr/colorPrimary" />
+
+    <TextView
+        android:id="@+id/empty_state_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:gravity="center"
+        android:textAppearance="@style/TextAppearance.Courier.EmptyTitle" />
+
+    <TextView
+        android:id="@+id/empty_state_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:textAppearance="@style/TextAppearance.Courier.EmptySubtitle" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/empty_state_action"
+        style="@style/Widget.Courier.Button.Tonal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:visibility="gone" />
+
+</LinearLayout>

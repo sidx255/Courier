@@ -1,6 +1,7 @@
 package ca.pkay.rcloneexplorer.Settings
 
 import android.content.DialogInterface
+import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
@@ -12,10 +13,12 @@ import androidx.appcompat.app.AlertDialog
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
+import ca.pkay.rcloneexplorer.Activities.HomeActivity
 import ca.pkay.rcloneexplorer.AppShortcutsHelper
 import ca.pkay.rcloneexplorer.Items.RemoteItem
 import ca.pkay.rcloneexplorer.R
 import ca.pkay.rcloneexplorer.Rclone
+import ca.pkay.rcloneexplorer.util.AppMode
 import ca.pkay.rcloneexplorer.util.FLog
 import de.felixnuesse.extract.extensions.TAG
 import de.felixnuesse.extract.settings.language.LanguagePicker
@@ -54,6 +57,16 @@ class GeneralPreferencesFragment : PreferenceFragmentCompat() {
         languagePreference?.setSummary(LanguagePicker(requireContext()).getCurrentLocale()?.displayLanguage)
         languagePreference?.setOnPreferenceClickListener {
             LanguagePicker(requireContext()).showPicker()
+            true
+        }
+
+        val appModePreference = findPreference("appModeSwitchTempKey") as Preference?
+        appModePreference?.setOnPreferenceClickListener {
+            AppMode.setMode(requireContext(), AppMode.MODE_SIMPLE)
+            val intent = Intent(requireContext(), HomeActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            requireActivity().finish()
             true
         }
 
