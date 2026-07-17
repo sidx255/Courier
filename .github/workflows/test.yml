@@ -1,0 +1,31 @@
+name: Unit Tests
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+    branches-ignore:
+      - 'master'
+
+jobs:
+  unitTests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+      # Unit tests are pure JVM; the rclone native library is only needed at
+      # runtime, so we skip the Go/NDK build to keep this job fast.
+      - name: Run unit tests
+        run: ./gradlew testCourierDebugUnitTest testOssDebugUnitTest -x :rclone:buildAll
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: app/build/reports/tests/
+          retention-days: 30
