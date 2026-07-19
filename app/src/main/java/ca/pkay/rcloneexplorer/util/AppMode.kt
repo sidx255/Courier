@@ -14,6 +14,7 @@ object AppMode {
     private const val GUIDED_TASK_CATEGORIES_KEY = "courier_guided_task_categories"
     private const val GUIDED_TRIGGER_ID_KEY = "courier_guided_trigger_id"
     private const val GUIDED_REMOTE_NAME_KEY = "courier_guided_remote_name"
+    private const val GUIDED_REMOTE_ADOPTED_KEY = "courier_guided_remote_adopted"
     private const val GUIDED_SHARE_KEY = "courier_guided_share"
     private const val GUIDED_DEVICE_NAME_KEY = "courier_guided_device_name"
     private const val GUIDED_SETUP_COMPLETE_KEY = "courier_guided_setup_complete"
@@ -26,9 +27,13 @@ object AppMode {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val key = context.getString(R.string.pref_key_app_mode)
         prefs.getString(key, null)?.let { return it }
-        val default = if (hasExistingConfiguration(context)) MODE_ADVANCED else MODE_SIMPLE
-        prefs.edit().putString(key, default).apply()
-        return default
+        return if (hasExistingConfiguration(context)) MODE_ADVANCED else MODE_SIMPLE
+    }
+
+    @JvmStatic
+    fun hasChosenMode(context: Context): Boolean {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        return prefs.getString(context.getString(R.string.pref_key_app_mode), null) != null
     }
 
     @JvmStatic
@@ -105,6 +110,12 @@ object AppMode {
     }
 
     @JvmStatic
+    fun isGuidedRemoteAdopted(context: Context): Boolean {
+        return PreferenceManager.getDefaultSharedPreferences(context)
+            .getBoolean(GUIDED_REMOTE_ADOPTED_KEY, false)
+    }
+
+    @JvmStatic
     fun getGuidedShare(context: Context): String? {
         return PreferenceManager.getDefaultSharedPreferences(context)
             .getString(GUIDED_SHARE_KEY, null)
@@ -129,7 +140,8 @@ object AppMode {
         triggerId: Long,
         remoteName: String,
         share: String,
-        deviceName: String
+        deviceName: String,
+        remoteAdopted: Boolean
     ) {
         PreferenceManager.getDefaultSharedPreferences(context)
             .edit()
@@ -137,6 +149,7 @@ object AppMode {
             .putStringSet(GUIDED_TASK_CATEGORIES_KEY, encodeTaskCategories(taskCategories))
             .putLong(GUIDED_TRIGGER_ID_KEY, triggerId)
             .putString(GUIDED_REMOTE_NAME_KEY, remoteName)
+            .putBoolean(GUIDED_REMOTE_ADOPTED_KEY, remoteAdopted)
             .putString(GUIDED_SHARE_KEY, share)
             .putString(GUIDED_DEVICE_NAME_KEY, deviceName)
             .putBoolean(GUIDED_SETUP_COMPLETE_KEY, true)
@@ -151,6 +164,7 @@ object AppMode {
             .remove(GUIDED_TASK_CATEGORIES_KEY)
             .remove(GUIDED_TRIGGER_ID_KEY)
             .remove(GUIDED_REMOTE_NAME_KEY)
+            .remove(GUIDED_REMOTE_ADOPTED_KEY)
             .remove(GUIDED_SHARE_KEY)
             .remove(GUIDED_DEVICE_NAME_KEY)
             .remove(GUIDED_SETUP_COMPLETE_KEY)

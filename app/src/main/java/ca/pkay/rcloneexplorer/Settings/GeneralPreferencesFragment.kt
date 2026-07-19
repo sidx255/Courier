@@ -43,7 +43,6 @@ class GeneralPreferencesFragment : PreferenceFragmentCompat() {
             Preference.SummaryProvider<FilesizePreference> { preference ->
                 val size = preference.getValue()
                 val sizeMb = (size / 1024 / 1024)
-                Log.e(TAG(), "test: $sizeMb")
                 resources.getString(R.string.pref_thumbnails_size_summary, sizeMb.toFloat())
             }
 

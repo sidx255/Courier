@@ -48,6 +48,9 @@
 
         <activity android:name=".Activities.OnboardingActivity" />
         <activity
+            android:name=".Activities.ModeChooserActivity"
+            android:theme="@style/AppTheme.NoActionBar" />
+        <activity
             android:name=".Activities.GuidedSetupActivity"
             android:theme="@style/AppTheme.NoActionBar" />
         <activity

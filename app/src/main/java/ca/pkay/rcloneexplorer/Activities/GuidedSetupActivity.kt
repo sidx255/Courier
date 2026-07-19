@@ -58,11 +58,16 @@ class GuidedSetupActivity : AppCompatActivity(), NasDiscoveryManager.Listener {
     private lateinit var categoryError: TextView
     private lateinit var deviceNameInput: TextInputEditText
     private lateinit var connectAction: MaterialButton
+    private lateinit var existingRemotesGroup: RadioGroup
+    private lateinit var existingRemotesHeader: TextView
+    private lateinit var manualFields: View
+    private lateinit var adoptNotice: TextView
 
     private val executor = Executors.newSingleThreadExecutor()
     private val customPaths = mutableListOf<String>()
     private var discovery: NasDiscoveryManager? = null
     private var pendingConnection: GuidedBackupManager.NasConnection? = null
+    private var adoptedRemote: String? = null
     private var step = STEP_WELCOME
     private var mode = MODE_SETUP
     private var busy = false
@@ -110,6 +115,10 @@ class GuidedSetupActivity : AppCompatActivity(), NasDiscoveryManager.Listener {
         categoryError = findViewById(R.id.guided_category_error)
         deviceNameInput = findViewById(R.id.guided_device_name)
         connectAction = findViewById(R.id.guided_connect_action)
+        existingRemotesGroup = findViewById(R.id.guided_existing_remotes)
+        existingRemotesHeader = findViewById(R.id.guided_existing_remotes_header)
+        manualFields = findViewById(R.id.guided_manual_fields)
+        adoptNotice = findViewById(R.id.guided_adopt_notice)
         pages = listOf(
             findViewById(R.id.guided_page_welcome),
             findViewById(R.id.guided_page_find),
@@ -128,6 +137,7 @@ class GuidedSetupActivity : AppCompatActivity(), NasDiscoveryManager.Listener {
         findViewById<MaterialButton>(R.id.guided_add_custom).setOnClickListener { openFolderPicker() }
 
         initializeSelections(savedInstanceState)
+        populateExistingRemotes()
         step = savedInstanceState?.getInt(STATE_STEP) ?: startStep()
         if (savedInstanceState != null && mode != MODE_CATEGORIES && step > STEP_CONNECT) {
             step = STEP_CONNECT
@@ -186,6 +196,7 @@ class GuidedSetupActivity : AppCompatActivity(), NasDiscoveryManager.Listener {
             else -> getString(R.string.guided_next)
         }
         if (step == STEP_FIND) startDiscovery()
+        if (step == STEP_CONNECT) applyConnectMode()
         if (step == STEP_CONFIRM) updateConfirmation()
     }
 
@@ -194,9 +205,15 @@ class GuidedSetupActivity : AppCompatActivity(), NasDiscoveryManager.Listener {
         when (step) {
             STEP_WELCOME -> showStep(STEP_FIND)
             STEP_FIND -> {
-                if (hostInput.text.isNullOrBlank()) {
-                    hostInput.error = getString(R.string.guided_nas_address)
-                    return
+                val checkedRemoteId = existingRemotesGroup.checkedRadioButtonId
+                if (checkedRemoteId != -1 && hostInput.text.isNullOrBlank()) {
+                    adoptedRemote = existingRemotesGroup.findViewById<View>(checkedRemoteId)?.tag as? String
+                } else {
+                    adoptedRemote = null
+                    if (hostInput.text.isNullOrBlank()) {
+                        hostInput.error = getString(R.string.guided_nas_address)
+                        return
+                    }
                 }
                 discovery?.stop()
                 discovery = null
@@ -233,17 +250,23 @@ class GuidedSetupActivity : AppCompatActivity(), NasDiscoveryManager.Listener {
     private fun handleBack() = goBack()
 
     private fun validateConnection() {
-        val connection = connectionFromFields()
+        val adopting = adoptedRemote
+        val connection = if (adopting == null) connectionFromFields() else null
         setBusy(true)
         connectProgress.visibility = View.VISIBLE
         connectAction.visibility = View.GONE
         connectStatus.setTextColor(MaterialColors.getColor(connectStatus, com.google.android.material.R.attr.colorOnSurfaceVariant))
         connectStatus.text = getString(R.string.guided_testing_connection)
         executor.execute {
-            val result = runCatching { manager.validateConnection(connection) }
-                .getOrElse {
-                    GuidedBackupManager.OperationResult.Error(getString(R.string.guided_connection_failed))
+            val result = runCatching {
+                if (adopting != null) {
+                    manager.validateExistingRemote(adopting, shareInput.text?.toString().orEmpty())
+                } else {
+                    manager.validateConnection(connection!!)
                 }
+            }.getOrElse {
+                GuidedBackupManager.OperationResult.Error(getString(R.string.guided_connection_failed))
+            }
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 connectProgress.visibility = View.GONE
@@ -291,8 +314,9 @@ class GuidedSetupActivity : AppCompatActivity(), NasDiscoveryManager.Listener {
             createStatus.text = getString(R.string.guided_alarm_required)
             return
         }
-        val connection = if (mode == MODE_CATEGORIES) null else pendingConnection
-        if (mode != MODE_CATEGORIES && connection == null) {
+        val adopting = if (mode == MODE_CATEGORIES) null else adoptedRemote
+        val connection = if (mode == MODE_CATEGORIES || adopting != null) null else pendingConnection
+        if (mode != MODE_CATEGORIES && adopting == null && connection == null) {
             showStep(STEP_CONNECT)
             return
         }
@@ -303,6 +327,8 @@ class GuidedSetupActivity : AppCompatActivity(), NasDiscoveryManager.Listener {
         executor.execute {
             val result = manager.provision(
                 connection,
+                adopting,
+                if (adopting != null) shareInput.text?.toString() else null,
                 selectedCategories(),
                 customPaths,
                 deviceNameInput.text?.toString().orEmpty()
@@ -335,6 +361,33 @@ class GuidedSetupActivity : AppCompatActivity(), NasDiscoveryManager.Listener {
         )
     }
 
+    private fun populateExistingRemotes() {
+        val remotes = manager.getAdoptableRemotes()
+        existingRemotesHeader.visibility = if (remotes.isEmpty()) View.GONE else View.VISIBLE
+        existingRemotesGroup.removeAllViews()
+        remotes.forEach { name ->
+            val radio = MaterialRadioButton(this).apply {
+                id = View.generateViewId()
+                text = name
+                tag = name
+                minHeight = resources.getDimensionPixelSize(R.dimen.settingsIconSize)
+                setOnClickListener {
+                    hostInput.text?.clear()
+                    hostInput.error = null
+                }
+            }
+            existingRemotesGroup.addView(radio)
+        }
+    }
+
+    private fun applyConnectMode() {
+        val adopting = adoptedRemote != null
+        manualFields.visibility = if (adopting) View.GONE else View.VISIBLE
+        adoptNotice.visibility = if (adopting) View.VISIBLE else View.GONE
+        connectStatus.text = ""
+        connectAction.visibility = View.GONE
+    }
+
     private fun selectedCategories(): Set<String> {
         return buildSet {
             if (categoryPhotos.isChecked) add(GuidedBackupManager.CATEGORY_PHOTOS)
@@ -347,6 +400,7 @@ class GuidedSetupActivity : AppCompatActivity(), NasDiscoveryManager.Listener {
     private fun updateConfirmation() {
         val summary = if (mode == MODE_CATEGORIES) manager.getConnectionSummary() else null
         val storage = pendingConnection?.let { "${it.host}:${it.port} / ${it.share}" }
+            ?: adoptedRemote?.let { "$it / ${shareInput.text?.toString()?.trim().orEmpty()}" }
             ?: summary?.let { "${it.host}:${it.port} / ${it.share}" }
             ?: "NAS"
         findViewById<TextView>(R.id.guided_confirm_storage_value).text = storage
@@ -391,6 +445,7 @@ class GuidedSetupActivity : AppCompatActivity(), NasDiscoveryManager.Listener {
             }
             minHeight = resources.getDimensionPixelSize(R.dimen.settingsIconSize)
             setOnClickListener {
+                existingRemotesGroup.clearCheck()
                 hostInput.setText(host.address)
                 portInput.setText(String.format(Locale.ROOT, "%d", host.port))
             }

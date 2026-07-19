@@ -122,6 +122,12 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
+        if (!AppMode.hasChosenMode(this)) {
+            startActivity(new Intent(this, ModeChooserActivity.class));
+            finish();
+            return;
+        }
+
         if (AppMode.isSimpleMode(this)) {
             startActivity(new Intent(this, HomeActivity.class));
             finish();

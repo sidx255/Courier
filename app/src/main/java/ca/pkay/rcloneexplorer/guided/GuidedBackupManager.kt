@@ -95,8 +95,34 @@ class GuidedBackupManager(context: Context) {
         }
     }
 
+    fun getAdoptableRemotes(): List<String> {
+        return rclone.remotes
+            .filter { it.type == RemoteItem.SMB }
+            .map { it.name }
+            .sorted()
+    }
+
+    fun validateExistingRemote(remoteName: String, share: String): OperationResult<Unit> {
+        val cleanShare = share.trim().trim('/')
+        if (cleanShare.isBlank()) return OperationResult.Error("Enter the SMB share name.")
+        if (!remoteExists(remoteName)) return OperationResult.Error("That remote is no longer available.")
+        val access = rclone.checkPathAccessible(RemoteItem(remoteName, "smb"), cleanShare)
+        return if (access.isAccessible) {
+            OperationResult.Success(Unit)
+        } else {
+            val raw = if (access.isTimedOut) "timeout" else access.error
+            RcloneErrorMapper.map(
+                appContext,
+                raw,
+                "Courier reached the remote, but could not open that share. Check the share name."
+            ).let { OperationResult.Error(it.message, it.action, it.actionLabel) }
+        }
+    }
+
     fun provision(
         connection: NasConnection?,
+        existingRemoteName: String?,
+        existingShare: String?,
         selectedCategories: Set<String>,
         customPaths: List<String>,
         deviceName: String
@@ -113,6 +139,7 @@ class GuidedBackupManager(context: Context) {
         val oldTriggerId = AppMode.getGuidedTriggerId(appContext)
         val oldTrigger = database.getTrigger(oldTriggerId)
         val oldRemote = AppMode.getGuidedRemoteName(appContext)
+        val oldRemoteAdopted = AppMode.isGuidedRemoteAdopted(appContext)
         val oldShare = AppMode.getGuidedShare(appContext)
         val oldTasks = oldTaskIds.mapNotNull(database::getTask)
         val wifiOnly = oldTasks.firstOrNull()?.wifionly ?: true
@@ -120,14 +147,31 @@ class GuidedBackupManager(context: Context) {
         val newFilterIds = mutableListOf<Long>()
         var newTriggerId = -1L
         var createdRemote: String? = null
+        var remoteAdopted = false
 
         if (connection != null) {
             validateInput(connection)?.let { return OperationResult.Error(it) }
         }
 
         try {
-            val remoteName = if (connection != null) {
-                uniqueRemoteName().also { name ->
+            val remoteName: String
+            val share: String
+            when {
+                existingRemoteName != null -> {
+                    if (!remoteExists(existingRemoteName)) {
+                        throw ProvisioningException("That remote is no longer available. Pick another.")
+                    }
+                    val adoptShare = existingShare?.trim()?.trim('/').orEmpty()
+                    if (adoptShare.isBlank()) throw ProvisioningException("Enter the SMB share name.")
+                    if (!canListRemote(existingRemoteName, adoptShare)) {
+                        throw ProvisioningException("Courier reached the remote, but could not open that share.")
+                    }
+                    remoteName = existingRemoteName
+                    share = adoptShare
+                    remoteAdopted = true
+                }
+                connection != null -> {
+                    val name = uniqueRemoteName()
                     createdRemote = name
                     when (val result = createRemote(name, connection)) {
                         is OperationResult.Error -> throw ProvisioningException(result.message)
@@ -136,13 +180,17 @@ class GuidedBackupManager(context: Context) {
                     if (!canListRemote(name, connection.share)) {
                         throw ProvisioningException("The NAS connection was created but the share could not be opened.")
                     }
+                    remoteName = name
+                    share = connection.share
                 }
-            } else {
-                oldRemote?.takeIf { remoteExists(it) }
-                    ?: throw ProvisioningException("The saved NAS connection is missing. Reconnect the storage first.")
+                else -> {
+                    remoteName = oldRemote?.takeIf { remoteExists(it) }
+                        ?: throw ProvisioningException("The saved NAS connection is missing. Reconnect the storage first.")
+                    share = oldShare
+                        ?: throw ProvisioningException("The saved SMB share is missing. Reconnect the storage first.")
+                    remoteAdopted = oldRemoteAdopted
+                }
             }
-            val share = connection?.share ?: oldShare
-                ?: throw ProvisioningException("The saved SMB share is missing. Reconnect the storage first.")
 
             val remoteType = RemoteItem.SMB
             val taskCategories = linkedMapOf<Long, String>()
@@ -202,7 +250,8 @@ class GuidedBackupManager(context: Context) {
                 trigger.id,
                 remoteName,
                 share,
-                normalizedDeviceName
+                normalizedDeviceName,
+                remoteAdopted
             )
             if (trigger.isEnabled) triggerService.queueSingleTrigger(trigger)
 
@@ -219,7 +268,7 @@ class GuidedBackupManager(context: Context) {
                 }?.let(database::deleteFilter)
                 GuidedBackupStatusStore.clear(appContext, taskId)
             }
-            if (!oldRemote.isNullOrBlank() && oldRemote != remoteName &&
+            if (!oldRemote.isNullOrBlank() && oldRemote != remoteName && !oldRemoteAdopted &&
                 database.allTasks.none { it.remoteId == oldRemote }
             ) {
                 rclone.deleteRemote(oldRemote)
