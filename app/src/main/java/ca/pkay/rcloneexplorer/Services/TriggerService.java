@@ -170,6 +170,16 @@ public class TriggerService extends Service {
         return PendingIntent.getBroadcast(context, (int) triggerId, i, PendingIntent.FLAG_UPDATE_CURRENT ^ PendingIntent.FLAG_IMMUTABLE);
     }
 
+    public void handleReceivedTrigger(long id) {
+        Trigger t = dbHandler.getTrigger(id);
+        // this can happen if the trigger was scheduled, but then deleted.
+        if (t == null) {
+            return;
+        }
+        startTask(t);
+        queueSingleTrigger(t);
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         createNotification();
