@@ -39,6 +39,7 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.io.InterruptedIOException
 import java.util.Random
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class SyncWorker (private var mContext: Context, workerParams: WorkerParameters): Worker(mContext, workerParams) {
@@ -49,6 +50,8 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         const val TASK_OPERATION = "TASK_OPERATION"
         const val TASK_REQUIRES_CHARGING = "TASK_REQUIRES_CHARGING"
         private const val TAG = "SyncWorker"
+        private const val SYNC_STALL_TIMEOUT_MS = 15 * 60 * 1000L
+        private const val SYNC_STALL_CHECK_MS = 60 * 1000L
 
         //those Extras do not follow the above schema, because they are exposed to external applications
         //That means shorter values make it easier to use. There is no other technical reason
@@ -82,6 +85,8 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
     // States
     private val sIsLoggingEnabled = mPreferences.getBoolean(getString(R.string.pref_key_logs), false)
     private var sRcloneProcess: Process? = null
+    @Volatile private var lastSyncProgressAt = 0L
+    @Volatile private var lastSyncBytes = -1L
     private var lastExitCode: Int? = null
     private val statusObject = StatusObject(mContext)
     private var failureReason = FAILURE_REASON.NO_FAILURE
@@ -384,6 +389,19 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         var exitCode = -1
         if (sRcloneProcess != null) {
             val localProcessReference = sRcloneProcess!!
+            lastSyncProgressAt = System.currentTimeMillis()
+            lastSyncBytes = -1L
+            val stallWatchdog = Executors.newSingleThreadScheduledExecutor { runnable ->
+                Thread(runnable, "courier-sync-stall").also { it.isDaemon = true }
+            }
+            stallWatchdog.scheduleWithFixedDelay({
+                if (System.currentTimeMillis() - lastSyncProgressAt > SYNC_STALL_TIMEOUT_MS &&
+                    TransferRuntime.isAlive(localProcessReference)
+                ) {
+                    FLog.e(TAG, "SyncWorker: transfer stalled with no progress; terminating rclone")
+                    TransferRuntime.terminateGracefully(localProcessReference)
+                }
+            }, SYNC_STALL_CHECK_MS, SYNC_STALL_CHECK_MS, TimeUnit.MILLISECONDS)
             try {
                 val reader = BufferedReader(InputStreamReader(localProcessReference.errorStream))
                 val iterator = reader.lineSequence().iterator()
@@ -403,6 +421,12 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
                             statusObject.parseLoglineToStatusObject(logline)
                         }
 
+                        val bytesTransferred = statusObject.mStats.optLong("bytes", 0L)
+                        if (bytesTransferred != lastSyncBytes) {
+                            lastSyncBytes = bytesTransferred
+                            lastSyncProgressAt = System.currentTimeMillis()
+                        }
+
                         updateForegroundNotification(mNotificationManager.updateSyncNotification(
                             title,
                             statusObject.notificationContent,
@@ -419,6 +443,8 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
                 FLog.e(TAG, "onHandleIntent: I/O interrupted, stream closed", e)
             } catch (e: IOException) {
                 FLog.e(TAG, "onHandleIntent: error reading stdout", e)
+            } finally {
+                stallWatchdog.shutdownNow()
             }
             try {
                 exitCode = localProcessReference.waitFor()
@@ -702,7 +728,11 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
     // ongoing notification.
     private fun updateForegroundNotification(notification: Notification?) {
         notification?.let {
-            setForegroundAsync(ForegroundInfo(ongoingNotificationID, it, FOREGROUND_SERVICE_TYPE_DATA_SYNC))
+            try {
+                setForegroundAsync(ForegroundInfo(ongoingNotificationID, it, FOREGROUND_SERVICE_TYPE_DATA_SYNC))
+            } catch (e: Exception) {
+                FLog.e(TAG, "updateForegroundNotification: could not promote to foreground service", e)
+            }
         }
     }
 
