@@ -1,0 +1,9 @@
+# Require review from the repository owner for all changes by default.
+# Combined with a branch protection rule that requires Code Owner review,
+# this ensures every pull request is approved before merge.
+* @sidx255
+
+# Security-sensitive areas: CI/CD, signing, and build configuration.
+/.github/ @sidx255
+/app/build.gradle @sidx255
+/build.gradle @sidx255

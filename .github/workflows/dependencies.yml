@@ -1,4 +1,8 @@
 name: "Verify dependency chain"
+
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
   push:

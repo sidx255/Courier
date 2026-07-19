@@ -1,5 +1,8 @@
 name: Translations
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
   pull_request:
@@ -41,30 +44,35 @@ jobs:
           fetch-depth: 0
       - name: Prepare Profanity Check
         id: prep
+        env:
+          PR_COMMITS: ${{ github.event.pull_request.commits }}
+          CHANGED_FILES: ${{ needs.string-change-verification.outputs.files }}
         run: |
           sudo apt-get install -y xmlstarlet
           pip3 install alt-profanity-check
           chmod +x ./scripts/checkProfanity.py
           chmod +x ./scripts/generateFilelist.sh
-          FILE_LIST="${{needs.string-change-verification.outputs.files}}"
+          FILE_LIST="$CHANGED_FILES"
           SIZE=$(echo "$FILE_LIST" | awk '{print NF}')
           if [ "$SIZE" -ne 1 ]; then
             echo "Only pass the amount of commits and one translation file! You passed: $SIZE"
             exit 1
           fi
-          TRANSLATIONS=$(./scripts/generateFilelist.sh ${{ github.event.pull_request.commits }} ${{needs.string-change-verification.outputs.files}})
+          TRANSLATIONS=$(./scripts/generateFilelist.sh "$PR_COMMITS" "$FILE_LIST")
           echo "TRANSLATIONS=$TRANSLATIONS" >> $GITHUB_OUTPUT
         shell: sh
-      - uses: fabasoad/translation-action@main
+      - uses: fabasoad/translation-action@486844691810f3721449e08160be7943a1493a3a # main @ 2026-07-19
         id: google-translate
         with:
           provider: google
           lang: auto-en
           source: ${{ steps.prep.outputs.TRANSLATIONS }}
       - name: Print the result
+        env:
+          TRANSLATED_TEXT: ${{ steps.google-translate.outputs.text }}
         run: |
-          echo "Translations are: '${{ steps.google-translate.outputs.text }}'"
-          echo "${{ steps.google-translate.outputs.text }}" | sed 's/ ; /\n/g' > translated_texts.txt
+          echo "Translations are: '$TRANSLATED_TEXT'"
+          echo "$TRANSLATED_TEXT" | sed 's/ ; /\n/g' > translated_texts.txt
           ./scripts/checkProfanity.py translated_texts.txt
         shell: sh
       - name: Upload Raw Translations
