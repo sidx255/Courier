@@ -26,6 +26,7 @@ import ca.pkay.rcloneexplorer.Items.Trigger;
 import ca.pkay.rcloneexplorer.R;
 import ca.pkay.rcloneexplorer.notifications.AppErrorNotificationManager;
 import ca.pkay.rcloneexplorer.util.PermissionManager;
+import ca.pkay.rcloneexplorer.util.SyncLog;
 import ca.pkay.rcloneexplorer.workmanager.SyncManager;
 
 public class TriggerService extends Service {
@@ -62,15 +63,36 @@ public class TriggerService extends Service {
 
     }
 
-    @SuppressLint("ScheduleExactAlarm") // this is caught by the PermissionManager itself
+    // Sets a single exact wake alarm, cancelling any previous one for the same PendingIntent.
+    // Shared by schedule and interval triggers so both fire reliably (including in Doze).
+    @SuppressLint("ScheduleExactAlarm") // permission is enforced via PermissionManager below
+    private void scheduleExactAlarm(long timeToTrigger, PendingIntent pi){
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        am.cancel(pi);
+
+        if(!(new PermissionManager(context)).grantedAlarms()){
+            new AppErrorNotificationManager(context).showNotification();
+            return;
+        }
+
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        boolean allowWhileIdle = sharedPreferences.getBoolean(context.getString(R.string.shared_preferences_allow_sync_trigger_while_idle), false);
+
+        if (allowWhileIdle) {
+            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeToTrigger, pi);
+        } else {
+            am.setExact(AlarmManager.RTC_WAKEUP, timeToTrigger, pi);
+        }
+    }
+
     private void queueSingleScheduleTrigger(Trigger trigger){
         if(trigger.isEnabled()){
             Calendar calendar = Calendar.getInstance();
             calendar.setTimeInMillis(System.currentTimeMillis());
 
-            int seconds = trigger.getTime();
-            calendar.set(Calendar.HOUR_OF_DAY, seconds/60);
-            calendar.set(Calendar.MINUTE, seconds%60);
+            int minutesOfDay = trigger.getTime();
+            calendar.set(Calendar.HOUR_OF_DAY, minutesOfDay/60);
+            calendar.set(Calendar.MINUTE, minutesOfDay%60);
 
             long difference = calendar.getTimeInMillis()-System.currentTimeMillis();
             //Properly schedule past events
@@ -80,54 +102,23 @@ public class TriggerService extends Service {
 
             // If a triggered event schedules the next occurence, we need to make sure that it does not create an endless loop for 60 seconds.
             // If it is "now", do it in 24h
-            if(Calendar.getInstance().get(Calendar.MINUTE) == seconds%60){
+            if(Calendar.getInstance().get(Calendar.MINUTE) == minutesOfDay%60){
                 difference = (24*60*60*1000);
             }
 
             long timeToTrigger = System.currentTimeMillis() + difference;
-
-            AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-            PendingIntent pi = getIntent(trigger.getId());
-            am.cancel(pi);
-
-            SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-            boolean allowWhileIdle = sharedPreferences.getBoolean(context.getString(R.string.shared_preferences_allow_sync_trigger_while_idle), false);
-
-            if((new PermissionManager(context)).grantedAlarms()) {
-                if (allowWhileIdle) {
-                    am.setExactAndAllowWhileIdle(
-                            AlarmManager.RTC_WAKEUP,
-                            timeToTrigger,
-                            pi
-                    );
-                } else {
-                    am.setExact(
-                            AlarmManager.RTC_WAKEUP,
-                            timeToTrigger,
-                            pi
-                    );
-                }
-            } else {
-                new AppErrorNotificationManager(context).showNotification();
-            }
+            scheduleExactAlarm(timeToTrigger, getIntent(trigger.getId()));
         }
     }
 
     private void queueSingleIntervalTrigger(Trigger trigger){
         if(trigger.isEnabled()){
-
-            int intervalMillis = trigger.getTime() * 60 * 1000;
-            long timeToTrigger = System.currentTimeMillis();
-
-            AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-            PendingIntent pi = getIntent(trigger.getId());
-            am.cancel(pi);
-            am.setInexactRepeating(
-                    AlarmManager.RTC_WAKEUP,
-                    timeToTrigger+intervalMillis,
-                    intervalMillis,
-                    pi
-            );
+            // One-shot exact alarm, re-armed after every fire (see handleReceivedTrigger) and on
+            // boot / app-update / time-change. setInexactRepeating is batched away by Doze, so a
+            // background interval backup would silently stop firing while the device is idle.
+            long intervalMillis = (long) trigger.getTime() * 60 * 1000;
+            long timeToTrigger = System.currentTimeMillis() + intervalMillis;
+            scheduleExactAlarm(timeToTrigger, getIntent(trigger.getId()));
         }
     }
 
@@ -149,12 +140,10 @@ public class TriggerService extends Service {
         }
 
         if(skipBecauseOfWeekday){
+            SyncLog.info(context, trigger.getTitle(),
+                    "Trigger fired but skipped: today is not an enabled weekday for this trigger.");
             return;
         }
-
-        //Intent i = SyncService.createInternalStartIntent(this, trigger.getWhatToTrigger());
-        //context.startService(i);
-
 
         SyncManager sm = new SyncManager(this.context);
         sm.queue(trigger);
@@ -167,7 +156,7 @@ public class TriggerService extends Service {
         i.putExtra(TRIGGER_ID, triggerId);
 
         // Todo: Beacause of the long to int cast, this may fail when the user has more than Integer.MAX tasks.
-        return PendingIntent.getBroadcast(context, (int) triggerId, i, PendingIntent.FLAG_UPDATE_CURRENT ^ PendingIntent.FLAG_IMMUTABLE);
+        return PendingIntent.getBroadcast(context, (int) triggerId, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     public void handleReceivedTrigger(long id) {

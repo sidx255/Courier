@@ -110,8 +110,8 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         if (!TransferRuntime.executionLock.tryLock()) {
             return Result.retry()
         }
-        acquireWakeLocks()
         try {
+            acquireWakeLocks()
             prepareNotifications()
 
             updateForegroundNotification(mNotificationManager.updateSyncNotification(

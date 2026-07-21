@@ -9,12 +9,14 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
 import ca.pkay.rcloneexplorer.Database.DatabaseHandler
 import ca.pkay.rcloneexplorer.Items.Task
 import ca.pkay.rcloneexplorer.Items.Trigger
 import ca.pkay.rcloneexplorer.util.AppMode
+import ca.pkay.rcloneexplorer.util.SyncLog
 import java.util.Random
 import java.util.concurrent.TimeUnit
 
@@ -33,12 +35,42 @@ class SyncManager(private var mContext: Context) {
     }
 
     fun queue(trigger: Trigger) {
+        val taskId = trigger.triggerTarget
         queue(
-            trigger.triggerTarget,
+            taskId,
             SyncOperation.TRANSFER,
-            ExistingWorkPolicy.KEEP,
-            AppMode.isGuidedTask(mContext, trigger.triggerTarget)
+            scheduledPolicyFor(taskId),
+            AppMode.isGuidedTask(mContext, taskId)
         )
+    }
+
+    /**
+     * Picks the enqueue policy for a scheduled (trigger-fired) transfer.
+     *
+     * A transfer that is genuinely RUNNING must not be interrupted, so it is kept. An entry that is
+     * only ENQUEUED/BLOCKED (for example wedged after an unclean stop) would, under KEEP, silently
+     * swallow every future scheduled run for this task; replacing it guarantees the schedule can
+     * always make progress. If the state cannot be read, we fail safe to KEEP.
+     */
+    private fun scheduledPolicyFor(taskId: Long): ExistingWorkPolicy {
+        return try {
+            val infos = WorkManager.getInstance(mContext)
+                .getWorkInfosForUniqueWork(transferWorkName(taskId))
+                .get(2, TimeUnit.SECONDS)
+            if (infos.any { it.state == WorkInfo.State.RUNNING }) {
+                SyncLog.info(
+                    mContext,
+                    transferWorkName(taskId),
+                    "Scheduled sync skipped: a transfer for this task is already running."
+                )
+                ExistingWorkPolicy.KEEP
+            } else {
+                ExistingWorkPolicy.REPLACE
+            }
+        } catch (e: Exception) {
+            Log.e("SyncManager", "scheduledPolicyFor: could not read work state", e)
+            ExistingWorkPolicy.KEEP
+        }
     }
 
     fun queue(task: Task) {
