@@ -113,4 +113,16 @@ public class VirtualContentProviderTest {
 
         assertEquals(actualName, expectedName);
     }
+
+    @Test
+    public void maxWaitRemembersEarlyRelease() {
+        VirtualContentProvider.MaxWait maxWait = new VirtualContentProvider.MaxWait(500);
+        maxWait.release();
+
+        long startedAt = System.nanoTime();
+        maxWait.await();
+        long elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000;
+
+        assertTrue("Released wait should return immediately", elapsedMillis < 100);
+    }
 }

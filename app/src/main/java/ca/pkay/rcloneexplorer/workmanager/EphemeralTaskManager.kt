@@ -12,10 +12,15 @@ import com.sidx255.courier.extract.notifications.implementations.DeleteWorkerNot
 import com.sidx255.courier.extract.notifications.implementations.DownloadWorkerNotification
 import com.sidx255.courier.extract.notifications.implementations.MoveWorkerNotification
 import com.sidx255.courier.extract.notifications.implementations.UploadWorkerNotification
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 
 class EphemeralTaskManager(private var mContext: Context) {
 
     companion object {
+
+        private const val DELETE_REQUEST_DIRECTORY = "delete-requests"
 
         fun queueDownload(
             context: Context,
@@ -86,19 +91,66 @@ class EphemeralTaskManager(private var mContext: Context) {
             addRemoteItemToData(EphemeralWorker.REMOTE, remote, data)
 
             addFileItemToData(EphemeralWorker.DELETE_FILE, file, data)
+            data.putString(EphemeralWorker.DELETE_PARENT_PATH, currentPath)
             EphemeralTaskManager(context).work(data.build(), "")
+        }
+
+        @JvmStatic
+        fun queueDeleteBatch(
+            context: Context,
+            remote: RemoteItem,
+            files: List<FileItem>,
+            currentPath: String
+        ): Boolean {
+            if (files.isEmpty()) return false
+            DeleteWorkerNotification(context).generateChannels()
+
+            var requestFile: File? = null
+            return try {
+                val requestDirectory = File(context.noBackupFilesDir, DELETE_REQUEST_DIRECTORY)
+                if (!requestDirectory.exists() && !requestDirectory.mkdirs()) return false
+
+                val request = JSONArray()
+                files.forEach { file ->
+                    request.put(JSONObject()
+                        .put(EphemeralWorker.DELETE_PATH, file.path)
+                        .put(EphemeralWorker.DELETE_IS_DIRECTORY, file.isDir))
+                }
+                requestFile = File.createTempFile("delete-", ".json", requestDirectory)
+                requestFile.writeText(request.toString(), Charsets.UTF_8)
+
+                val data = Data.Builder()
+                    .putString(EphemeralWorker.EPHEMERAL_TYPE, Type.DELETE_BATCH.name)
+                    .putString(EphemeralWorker.DELETE_MANIFEST, requestFile.absolutePath)
+                    .putString(EphemeralWorker.DELETE_PARENT_PATH, currentPath)
+                addRemoteItemToData(EphemeralWorker.REMOTE, remote, data)
+                EphemeralTaskManager(context).work(data.build(), "")
+                true
+            } catch (exception: Exception) {
+                Log.e("EphemeralTaskManager", "Could not queue batch deletion", exception)
+                requestFile?.delete()
+                false
+            }
         }
 
         private fun addFileItemToData(key: String, fileItem: FileItem, data: Data.Builder){
             val parcel = Parcel.obtain()
-            fileItem.writeToParcel(parcel, 0)
-            data.putByteArray(key, parcel.marshall())
+            try {
+                fileItem.writeToParcel(parcel, 0)
+                data.putByteArray(key, parcel.marshall())
+            } finally {
+                parcel.recycle()
+            }
         }
 
         private fun addRemoteItemToData(key: String, remote: RemoteItem, data: Data.Builder){
             val parcel = Parcel.obtain()
-            remote.writeToParcel(parcel, 0)
-            data.putByteArray(key, parcel.marshall())
+            try {
+                remote.writeToParcel(parcel, 0)
+                data.putByteArray(key, parcel.marshall())
+            } finally {
+                parcel.recycle()
+            }
         }
     }
 

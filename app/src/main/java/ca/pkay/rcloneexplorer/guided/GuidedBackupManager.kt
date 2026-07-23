@@ -337,7 +337,7 @@ class GuidedBackupManager(context: Context) {
             ?.let { database.getTask(it.triggerTarget) }
             ?: getGuidedTasks().firstOrNull()
             ?: return false
-        SyncManager(appContext).queueNow(firstTask)
+        SyncManager(appContext).queueChainNow(firstTask)
         return true
     }
 

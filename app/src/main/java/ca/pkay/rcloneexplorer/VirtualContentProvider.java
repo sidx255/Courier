@@ -112,8 +112,8 @@ public class VirtualContentProvider extends SingleRootProvider {
     private Rclone rclone;
     private SharedPreferences preferences;
     private File configFile;
-    RcloneRcd rcd;
-    RcdService rcdService;
+    volatile RcloneRcd rcd;
+    volatile RcdService rcdService;
     volatile boolean rcdAvailable;
 
     private final ServiceConnection connection = new ServiceConnection() {
@@ -131,6 +131,8 @@ public class VirtualContentProvider extends SingleRootProvider {
         public void onServiceDisconnected(ComponentName name) {
             FLog.d(TAG, "onServiceDisconnected: service disconnected");
             rcdAvailable = false;
+            rcd = null;
+            rcdService = null;
         }
     };
 
@@ -151,13 +153,15 @@ public class VirtualContentProvider extends SingleRootProvider {
         if (rcdService != null && rcdService.isShutdown()) {
             FLog.d(TAG, "Removing old binding");
             appCtx.unbindService(connection);
+            rcd = null;
+            rcdService = null;
         }
         startBindService(context);
         awaitRcdService();
-        if (null != rcdService) {
-            FLog.w(TAG, "acquireRcd: rcd not ready in time");
+        if (rcdAvailable && null != rcdService && null != rcd) {
             return true;
         }
+        FLog.w(TAG, "acquireRcd: rcd not ready in time");
         return false;
     }
 
@@ -174,7 +178,7 @@ public class VirtualContentProvider extends SingleRootProvider {
 
     private void awaitRcdService() {
         long waitTime = 500;
-        while (waitTime > 0 && null != rcdService) {
+        while (waitTime > 0 && !rcdAvailable) {
             FLog.d(TAG, "acquireRcd: waiting for service");
             long waitStart = System.nanoTime();
             try {
@@ -686,7 +690,6 @@ public class VirtualContentProvider extends SingleRootProvider {
             @Override
             void onFinish(RcloneRcd.JobStatusResponse status) {
                 FLog.v(TAG, "rename finished with: %s at %d", status.success, status.endTime);
-                lock.release();
                 if (!status.success) {
                     FLog.w(TAG, "renameDocument: failed to rename %s to %s", srcPath, dstPath);
                 } else {
@@ -713,20 +716,19 @@ public class VirtualContentProvider extends SingleRootProvider {
      */
     private static class OnJobFinishListener implements RcloneRcd.JobStatusHandler {
 
-        private final Object lock;
+        private final MaxWait lock;
 
-        public OnJobFinishListener(Object lock) {
+        public OnJobFinishListener(MaxWait lock) {
             this.lock = lock;
         }
 
         @Override
         public final void handleJobStatus(RcloneRcd.JobStatusResponse jobStatusResponse) {
-            if (null != lock) {
-                synchronized (lock) {
-                    lock.notify();
-                }
+            try {
+                onFinish(jobStatusResponse);
+            } finally {
+                lock.release();
             }
-            onFinish(jobStatusResponse);
         }
 
         void onFinish(RcloneRcd.JobStatusResponse jobStatusResponse) {
@@ -737,33 +739,32 @@ public class VirtualContentProvider extends SingleRootProvider {
      * An inefficient but simple lock to increase compatibility with clients
      * that don't understand change notifications.
      */
-    private static class MaxWait {
+    static class MaxWait {
 
         private final long timeout;
-        private final Object lock;
+        private boolean released;
 
         MaxWait(long timeout) {
             this.timeout = timeout;
-            this.lock = new Object();
         }
 
         /**
          * Await release of
          */
-        public void await() {
-            synchronized (lock) {
+        public synchronized void await() {
+            if (!released) {
                 try {
-                    lock.wait(timeout);
+                    wait(timeout);
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     throw new RuntimeException(e);
                 }
             }
         }
 
-        public void release() {
-            if(Thread.holdsLock(lock)) {
-                lock.notify();
-            }
+        public synchronized void release() {
+            released = true;
+            notifyAll();
         }
     }
 
@@ -798,7 +799,6 @@ public class VirtualContentProvider extends SingleRootProvider {
                 fsCache.remove(documentId);
                 remoteState.remove(documentId);
                 revokeDocumentPermission(rootedDocumentId);
-                lock.release();
                 notifyChange(rootedDocumentId);
             }
         };
@@ -845,7 +845,6 @@ public class VirtualContentProvider extends SingleRootProvider {
             @Override
             void onFinish(RcloneRcd.JobStatusResponse jobStatusResponse) {
                 FLog.v(TAG, "copyDocument/onFinish(): success=%s", jobStatusResponse.success);
-                lock.release();
                 notifyChange(targetDocumentId);
             }
         };
@@ -893,7 +892,6 @@ public class VirtualContentProvider extends SingleRootProvider {
                 fsCache.remove(getNoRootId(sourceDocumentId));
                 remoteState.remove(getNoRootId(sourceDocumentId));
                 revokeDocumentPermission(rootedSrcDocId);
-                lock.release();
                 notifyChange(rootedSrcDocId);
                 notifyChange(targetDocumentId);
             }

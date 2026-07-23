@@ -629,12 +629,6 @@ public class Rclone {
     }
 
     private Process getRuntimeProcess(String[] command, String[] env) throws IOException {
-        try{
-            Runtime.getRuntime().exec(rclone);
-        } catch (IOException e){
-            FLog.e("rclone", "Error executing rclone!" +e.getMessage());
-            throw new IOException("Error executing rclone!" +e.getMessage());
-        }
         return Runtime.getRuntime().exec(command, env);
     }
 
@@ -1125,31 +1119,48 @@ public class Rclone {
     }
 
     public Process deleteItems(RemoteItem remote, FileItem deleteItem) {
-        String[] command;
-        String filePath;
-        Process process = null;
-        String localRemotePath;
+        return deleteItem.isDir()
+                ? purgePath(remote, deleteItem.getPath())
+                : deleteFile(remote, deleteItem.getPath());
+    }
 
-        if (remote.isRemoteType(RemoteItem.LOCAL) && (!remote.isAlias() && !remote.isCrypt() && !remote.isCache())) {
-            localRemotePath = getLocalRemotePathPrefix(remote, context) + "/";
-        } else {
-            localRemotePath = "";
-        }
+    public Process deleteFiles(RemoteItem remote, String filesFromRawPath) {
+        String[] command = createCommandWithOptions(
+                "delete",
+                getRemoteSection(remote, "//" + remote.getName()),
+                "--files-from-raw", filesFromRawPath,
+                "--no-traverse",
+                "--stats=1s", "--stats-log-level", "NOTICE", "--use-json-log"
+        );
+        return startDeleteProcess(command, "deleteFiles");
+    }
 
-        filePath = remote.getName() + ":" + localRemotePath + deleteItem.getPath();
-        if (deleteItem.isDir()) {
-            command = createCommandWithOptions("purge", filePath);
-        } else {
-            command = createCommandWithOptions("deletefile", filePath);
-        }
+    public Process deleteFile(RemoteItem remote, String path) {
+        String[] command = createCommandWithOptions(
+                "deletefile",
+                getRemoteSection(remote, path),
+                "--use-json-log"
+        );
+        return startDeleteProcess(command, "deleteFile");
+    }
 
+    public Process purgePath(RemoteItem remote, String path) {
+        String[] command = createCommandWithOptions(
+                "purge",
+                getRemoteSection(remote, path),
+                "--use-json-log"
+        );
+        return startDeleteProcess(command, "purgePath");
+    }
+
+    private Process startDeleteProcess(String[] command, String operation) {
         String[] env = getRcloneEnv();
         try {
-            process = getRuntimeProcess(command, env);
+            return getRuntimeProcess(command, env);
         } catch (IOException e) {
-            FLog.e(TAG, "deleteItems: error starting rclone", e);
+            FLog.e(TAG, operation + ": error starting rclone", e);
+            return null;
         }
-        return process;
     }
 
     public Boolean makeDirectory(RemoteItem remote, String path) {

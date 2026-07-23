@@ -19,11 +19,13 @@ import androidx.core.app.NotificationCompat;
 import androidx.preference.PreferenceManager;
 
 import java.util.Calendar;
+import java.util.TimeZone;
 
 import ca.pkay.rcloneexplorer.BroadcastReceivers.TriggerReciever;
 import ca.pkay.rcloneexplorer.Database.DatabaseHandler;
 import ca.pkay.rcloneexplorer.Items.Trigger;
 import ca.pkay.rcloneexplorer.R;
+import ca.pkay.rcloneexplorer.guided.GuidedSchedule;
 import ca.pkay.rcloneexplorer.notifications.AppErrorNotificationManager;
 import ca.pkay.rcloneexplorer.util.PermissionManager;
 import ca.pkay.rcloneexplorer.util.SyncLog;
@@ -86,28 +88,13 @@ public class TriggerService extends Service {
     }
 
     private void queueSingleScheduleTrigger(Trigger trigger){
-        if(trigger.isEnabled()){
-            Calendar calendar = Calendar.getInstance();
-            calendar.setTimeInMillis(System.currentTimeMillis());
-
-            int minutesOfDay = trigger.getTime();
-            calendar.set(Calendar.HOUR_OF_DAY, minutesOfDay/60);
-            calendar.set(Calendar.MINUTE, minutesOfDay%60);
-
-            long difference = calendar.getTimeInMillis()-System.currentTimeMillis();
-            //Properly schedule past events
-            if(difference<0){
-                difference = (24*60*60*1000) + difference;
-            }
-
-            // If a triggered event schedules the next occurence, we need to make sure that it does not create an endless loop for 60 seconds.
-            // If it is "now", do it in 24h
-            if(Calendar.getInstance().get(Calendar.MINUTE) == minutesOfDay%60){
-                difference = (24*60*60*1000);
-            }
-
-            long timeToTrigger = System.currentTimeMillis() + difference;
-            scheduleExactAlarm(timeToTrigger, getIntent(trigger.getId()));
+        Long nextRunTime = GuidedSchedule.INSTANCE.nextRunTime(
+                trigger,
+                System.currentTimeMillis(),
+            TimeZone.getDefault()
+        );
+        if(nextRunTime != null){
+            scheduleExactAlarm(nextRunTime, getIntent(trigger.getId()));
         }
     }
 
@@ -172,6 +159,10 @@ public class TriggerService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         createNotification();
+        if (intent == null) {
+            stopForeground(true);
+            return Service.START_NOT_STICKY;
+        }
         long id = intent.getLongExtra(TRIGGER_ID, -1);
         this.dbHandler = new DatabaseHandler(getBaseContext());
         this.context = getBaseContext();

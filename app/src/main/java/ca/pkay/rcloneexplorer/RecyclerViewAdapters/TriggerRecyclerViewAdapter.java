@@ -113,8 +113,10 @@ public class TriggerRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 
     private void updateStatusIcon(Trigger trigger, ImageButton button){
         Drawable d = ResourcesCompat.getDrawable(context.getResources(), R.drawable.ic_twotone_check_circle_24, null);
+        button.setContentDescription(context.getString(R.string.trigger_enabled_description));
         if(!trigger.isEnabled()){
             d =ResourcesCompat.getDrawable(context.getResources(), R.drawable.ic_twotone_cancel_24, null);
+            button.setContentDescription(context.getString(R.string.trigger_disabled_description));
         }
         button.setImageDrawable(d);
     }

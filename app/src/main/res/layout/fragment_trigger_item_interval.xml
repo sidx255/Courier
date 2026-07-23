@@ -16,7 +16,7 @@
                 android:id="@+id/triggerIcon"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:background="#00FFFFFF"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/enabled"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -25,32 +25,32 @@
 
             <TextView
                 android:id="@+id/triggerName"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
                 android:layout_marginTop="8dp"
-                android:fontFamily="sans-serif"
-                android:textSize="16sp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                app:layout_constraintEnd_toStartOf="@+id/triggerOptions"
                 app:layout_constraintStart_toEndOf="@+id/triggerIcon"
                 app:layout_constraintTop_toTopOf="parent"
                 tools:text="Triggername" />
 
             <ImageButton
                 android:id="@+id/triggerOptions"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="?selectableItemBackgroundBorderless"
                 android:contentDescription="@string/file_options_content_description"
-                android:padding="4dp"
                 android:src="@drawable/ic_more_vert"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
             <TextView
                 android:id="@+id/intervalLabel"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:layout_marginBottom="8dp"

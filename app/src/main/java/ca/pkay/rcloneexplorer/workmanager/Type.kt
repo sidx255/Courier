@@ -4,5 +4,6 @@ enum class Type {
     DOWNLOAD,
     UPLOAD,
     MOVE,
-    DELETE
+    DELETE,
+    DELETE_BATCH
 }

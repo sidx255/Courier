@@ -40,7 +40,8 @@ class SyncManager(private var mContext: Context) {
             taskId,
             SyncOperation.TRANSFER,
             scheduledPolicyFor(taskId),
-            AppMode.isGuidedTask(mContext, taskId)
+            AppMode.isGuidedTask(mContext, taskId),
+            true
         )
     }
 
@@ -85,6 +86,10 @@ class SyncManager(private var mContext: Context) {
         queue(task.id, SyncOperation.TRANSFER, ExistingWorkPolicy.REPLACE)
     }
 
+    fun queueChainNow(task: Task) {
+        queue(task.id, SyncOperation.TRANSFER, ExistingWorkPolicy.REPLACE, runFollowups = true)
+    }
+
     fun queue(taskID: Long) {
         queue(taskID, SyncOperation.TRANSFER)
     }
@@ -94,20 +99,22 @@ class SyncManager(private var mContext: Context) {
     }
 
     fun queueFollowup(taskID: Long, requiresCharging: Boolean) {
-        queue(taskID, SyncOperation.TRANSFER, ExistingWorkPolicy.KEEP, requiresCharging)
+        queue(taskID, SyncOperation.TRANSFER, ExistingWorkPolicy.KEEP, requiresCharging, true)
     }
 
     private fun queue(
         taskID: Long,
         operation: SyncOperation,
         policy: ExistingWorkPolicy,
-        requiresCharging: Boolean = false
+        requiresCharging: Boolean = false,
+        runFollowups: Boolean = false
     ) {
         val requiresUnmetered = DatabaseHandler(mContext).getTask(taskID)?.wifionly == true
         val data = Data.Builder()
         data.putLong(SyncWorker.TASK_ID, taskID)
         data.putString(SyncWorker.TASK_OPERATION, operation.name)
         data.putBoolean(SyncWorker.TASK_REQUIRES_CHARGING, requiresCharging)
+        data.putBoolean(SyncWorker.TASK_RUN_FOLLOWUPS, runFollowups)
 
         val uploadWorkRequest = OneTimeWorkRequestBuilder<SyncWorker>()
             .setInputData(data.build())

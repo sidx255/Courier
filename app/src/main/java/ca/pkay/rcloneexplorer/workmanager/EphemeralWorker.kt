@@ -37,6 +37,12 @@ import android.util.Log
 import com.sidx255.courier.extract.notifications.implementations.DeleteWorkerNotification
 import com.sidx255.courier.extract.notifications.implementations.MoveWorkerNotification
 import com.sidx255.courier.extract.notifications.implementations.UploadWorkerNotification
+import org.json.JSONArray
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileOutputStream
+import java.io.OutputStreamWriter
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
 
@@ -57,6 +63,10 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
         const val MOVE_TARGETPATH = "MOVE_TARGETPATH"
 
         const val DELETE_FILE = "DELETE_FILE"
+        const val DELETE_MANIFEST = "DELETE_MANIFEST"
+        const val DELETE_PARENT_PATH = "DELETE_PARENT_PATH"
+        const val DELETE_PATH = "path"
+        const val DELETE_IS_DIRECTORY = "isDirectory"
     }
 
     internal enum class FAILURE_REASON {
@@ -81,6 +91,9 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
     private val ongoingNotificationID = Random.nextInt()
     private var mWakeLock: PowerManager.WakeLock? = null
     private var mWifiLock: WifiManager.WifiLock? = null
+    private var deleteItemCount = 0
+    private var affectedRemote: String? = null
+    private var affectedPath: String? = null
 
 
     private var mTitle: String = mNotificationManager?.initialTitle ?: ""
@@ -167,21 +180,34 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
                             remoteItem,
                             fileItem
                         )
+                        affectedRemote = remoteItem.name
+                        affectedPath = inputData.getString(DELETE_PARENT_PATH)
+                    }
+                    Type.DELETE_BATCH -> {
+                        runDeleteBatch(remoteItem)
+                        affectedRemote = remoteItem.name
+                        affectedPath = inputData.getString(DELETE_PARENT_PATH)
                     }
                 }
-                handleSync(mTitle)
+                if (type != Type.DELETE_BATCH) {
+                    handleSync(mTitle)
+                }
             } else {
                 log("Preconditions are not met!")
                 postSync()
                 return Result.failure()
             }
 
+                if (failureReason == FAILURE_REASON.NO_FAILURE && affectedRemote != null) {
+                    sendOperationFinishedBroadcast(affectedRemote!!, affectedPath)
+                }
                 postSync()
                 return if (failureReason == FAILURE_REASON.NO_FAILURE) Result.success() else Result.failure()
             }
             log("Critical: No valid ephemeral type passed!")
             return Result.failure()
         } finally {
+            cleanupDeleteManifest()
             releaseWakeLocks()
             TransferRuntime.executionLock.unlock()
         }
@@ -193,7 +219,9 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
         SyncLog.info(mContext, mTitle, statusObject.toString())
         failureReason = FAILURE_REASON.CANCELLED
         TransferRuntime.terminateGracefully(sRcloneProcess)
-        postSync()
+        if (mNotificationManager != null) {
+            postSync()
+        }
     }
 
     private fun finishWork() {
@@ -225,12 +253,12 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
         return when(type){
             Type.DOWNLOAD -> DownloadWorkerNotification(mContext)
             Type.UPLOAD -> UploadWorkerNotification(mContext)
-            Type.DELETE -> DeleteWorkerNotification(mContext)
+            Type.DELETE, Type.DELETE_BATCH -> DeleteWorkerNotification(mContext)
             Type.MOVE -> MoveWorkerNotification(mContext)
         }
     }
 
-    private fun handleSync(title: String) {
+    private fun handleSync(title: String, cancelOngoingNotification: Boolean = true) {
         if (sRcloneProcess != null) {
             val localProcessReference = sRcloneProcess!!
             try {
@@ -279,8 +307,77 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
             }
         } else {
             log("Sync: No Rclone Process!")
+            failureReason = FAILURE_REASON.RCLONE_ERROR
         }
-        mNotificationManager?.cancelSyncNotification(ongoingNotificationID)
+        if (cancelOngoingNotification) {
+            mNotificationManager?.cancelSyncNotification(ongoingNotificationID)
+        }
+    }
+
+    private fun runDeleteBatch(remoteItem: RemoteItem) {
+        val manifestPath = inputData.getString(DELETE_MANIFEST)
+        if (manifestPath.isNullOrEmpty()) {
+            failureReason = FAILURE_REASON.NO_TASK
+            return
+        }
+
+        var filesFrom: File? = null
+        try {
+            val request = JSONArray(File(manifestPath).readText(Charsets.UTF_8))
+            val files = mutableListOf<String>()
+            val individualFiles = mutableListOf<String>()
+            val directories = mutableListOf<String>()
+            for (index in 0 until request.length()) {
+                val item = request.getJSONObject(index)
+                val path = item.getString(DELETE_PATH)
+                if (path.isEmpty()) continue
+                if (item.getBoolean(DELETE_IS_DIRECTORY)) {
+                    directories.add(path)
+                } else if (path.contains('\n') || path.contains('\r')) {
+                    individualFiles.add(path)
+                } else {
+                    files.add(path)
+                }
+            }
+            deleteItemCount = files.size + individualFiles.size + directories.size
+            if (deleteItemCount == 0) {
+                failureReason = FAILURE_REASON.NO_TASK
+                return
+            }
+
+            val rclone = Rclone(mContext)
+            if (files.isNotEmpty()) {
+                filesFrom = File.createTempFile("delete-files-", ".txt", mContext.cacheDir)
+                BufferedWriter(OutputStreamWriter(FileOutputStream(filesFrom), StandardCharsets.UTF_8)).use { writer ->
+                    files.forEach { path ->
+                        writer.write(path)
+                        writer.newLine()
+                    }
+                }
+                sRcloneProcess = rclone.deleteFiles(remoteItem, filesFrom.absolutePath)
+                handleSync(mTitle, false)
+            }
+            for (path in individualFiles) {
+                if (failureReason != FAILURE_REASON.NO_FAILURE) break
+                sRcloneProcess = rclone.deleteFile(remoteItem, path)
+                handleSync(mTitle, false)
+            }
+            for (path in directories) {
+                if (failureReason != FAILURE_REASON.NO_FAILURE) break
+                sRcloneProcess = rclone.purgePath(remoteItem, path)
+                handleSync(mTitle, false)
+            }
+        } catch (exception: Exception) {
+            FLog.e(tag(), "runDeleteBatch: could not process delete request", exception)
+            failureReason = FAILURE_REASON.RCLONE_ERROR
+        } finally {
+            filesFrom?.delete()
+            mNotificationManager?.cancelSyncNotification(ongoingNotificationID)
+        }
+    }
+
+    private fun cleanupDeleteManifest() {
+        inputData.getString(DELETE_MANIFEST)?.let { File(it).delete() }
     }
 
     private fun postSync() {
@@ -297,6 +394,7 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
         when (failureReason) {
             FAILURE_REASON.NO_FAILURE -> {
                 showSuccessNotification(notificationId)
+                endNotificationAlreadyPosted = true
                 return
             }
             FAILURE_REASON.CANCELLED -> {
@@ -341,7 +439,15 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
         //Todo: This should be context dependend on the type. It is currently not!
 
 
-        var message = mNotificationManager?.generateSuccessMessage(statusObject, getCurrentFile())?: "error"
+        var message = if (Type.valueOf(inputData.getString(EPHEMERAL_TYPE) ?: Type.DOWNLOAD.name) == Type.DELETE_BATCH) {
+            mContext.resources.getQuantityString(
+                R.plurals.worker_deleting_batch_success_message,
+                deleteItemCount,
+                deleteItemCount
+            )
+        } else {
+            mNotificationManager?.generateSuccessMessage(statusObject, getCurrentFile()) ?: "error"
+        }
 
         mNotificationManager?.showSuccessNotification(
             mTitle,
@@ -398,7 +504,7 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
         return true
     }
 
-    private fun sendUploadFinishedBroadcast(remote: String, path: String?) {
+    private fun sendOperationFinishedBroadcast(remote: String, path: String?) {
         val intent = Intent()
         intent.action = getString(R.string.background_service_broadcast)
         intent.putExtra(getString(R.string.background_service_broadcast_data_remote), remote)
@@ -439,9 +545,13 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
         }
 
         val parcel = Parcel.obtain()
-        parcel.unmarshall(sourceParcelByteArray, 0, sourceParcelByteArray.size)
-        parcel.setDataPosition(0)
-        return FileItem.CREATOR.createFromParcel(parcel)
+        return try {
+            parcel.unmarshall(sourceParcelByteArray, 0, sourceParcelByteArray.size)
+            parcel.setDataPosition(0)
+            FileItem.CREATOR.createFromParcel(parcel)
+        } finally {
+            parcel.recycle()
+        }
     }
 
     private fun getRemoteitemFromParcel(key: String): RemoteItem? {
@@ -453,9 +563,13 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
         }
 
         val parcel = Parcel.obtain()
-        parcel.unmarshall(sourceParcelByteArray, 0, sourceParcelByteArray.size)
-        parcel.setDataPosition(0)
-        return RemoteItem.CREATOR.createFromParcel(parcel)
+        return try {
+            parcel.unmarshall(sourceParcelByteArray, 0, sourceParcelByteArray.size)
+            parcel.setDataPosition(0)
+            RemoteItem.CREATOR.createFromParcel(parcel)
+        } finally {
+            parcel.recycle()
+        }
     }
 
     private fun getCurrentFile(): FileItem {
@@ -484,6 +598,7 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
             Type.DELETE -> {
                 getFileitemFromParcel(DELETE_FILE)
             }
+            Type.DELETE_BATCH -> throw IllegalStateException("Batch deletion has no single current file")
         }
     }
 }

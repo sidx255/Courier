@@ -58,7 +58,7 @@
         android:paddingTop="16dp"
         android:paddingBottom="16dp"
         android:text="@string/authentication"
-        android:textColor="@color/colorAccent" />
+        android:textColor="?attr/colorSecondary" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/text_input_layout_user"

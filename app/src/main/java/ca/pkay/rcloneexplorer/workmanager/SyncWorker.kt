@@ -49,6 +49,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         const val TASK_EPHEMERAL = "TASK_EPHEMERAL"
         const val TASK_OPERATION = "TASK_OPERATION"
         const val TASK_REQUIRES_CHARGING = "TASK_REQUIRES_CHARGING"
+        const val TASK_RUN_FOLLOWUPS = "TASK_RUN_FOLLOWUPS"
         private const val TAG = "SyncWorker"
         private const val SYNC_STALL_TIMEOUT_MS = 15 * 60 * 1000L
         private const val SYNC_STALL_CHECK_MS = 60 * 1000L
@@ -94,6 +95,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
     private var silentRun = false
     private val ongoingNotificationID = Random().nextInt()
     private val mRequiresCharging = inputData.getBoolean(TASK_REQUIRES_CHARGING, false)
+    private val mRunFollowups = inputData.getBoolean(TASK_RUN_FOLLOWUPS, false)
 
     private var mWakeLock: PowerManager.WakeLock? = null
     private var mWifiLock: WifiManager.WifiLock? = null
@@ -489,10 +491,12 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
                 recordGuidedRepair(GuidedVerificationStatusStore.REPAIR_SUCCESS)
                 showSuccessNotification(notificationId)
                 if (mOperation == SyncOperation.TRANSFER) {
-                    if (mTask.onSuccessFollowup == null || mTask.onSuccessFollowup == -1L) {
+                    if (!mRunFollowups || mTask.onSuccessFollowup == null || mTask.onSuccessFollowup == -1L) {
                         BackupStatusWidget.updateAll(mContext)
                     }
-                    followupTask(mTask.onSuccessFollowup)
+                    if (mRunFollowups) {
+                        followupTask(mTask.onSuccessFollowup)
+                    }
                 }
                 return
             }
@@ -541,10 +545,12 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         }
         recordGuidedRepair(GuidedVerificationStatusStore.REPAIR_FAILED)
         if (mOperation == SyncOperation.TRANSFER) {
-            if (mTask.onFailFollowup == null || mTask.onFailFollowup == -1L) {
+            if (!mRunFollowups || mTask.onFailFollowup == null || mTask.onFailFollowup == -1L) {
                 BackupStatusWidget.updateAll(mContext)
             }
-            followupTask(mTask.onFailFollowup)
+            if (mRunFollowups) {
+                followupTask(mTask.onFailFollowup)
+            }
         }
         showFailNotification(notificationId, content)
         endNotificationAlreadyPosted = true

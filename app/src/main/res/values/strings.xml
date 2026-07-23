@@ -183,6 +183,8 @@
     <string name="move">Move</string>
     <string name="rename">Rename</string>
     <string name="delete">Delete</string>
+    <string name="delete_task_title">Delete task &quot;%1$s&quot;?</string>
+    <string name="delete_task_message">Scheduled triggers for this task will also be deleted, and links from follow-up tasks will be cleared.</string>
     <string name="app_version">App Version</string>
     <string name="rclone_version">Rclone Version</string>
     <string name="changelog">Changelog</string>
@@ -200,6 +202,7 @@
     <string name="empty_folder">The folder is empty</string>
     <string name="ooops">Ooops!</string>
     <string name="no_config_found">No configuration found, please import or add remote</string>
+    <string name="add_remote">Add remote</string>
     <string name="import_configuration">Import configuration</string>
     <string name="empty_state_icon">Empty state icon</string>
     <string name="file_icon">File icon</string>
@@ -587,6 +590,10 @@
         <item quantity="zero">Nothing was deleted.</item>
         <item quantity="other">%s was deleted!</item>
     </plurals>
+    <plurals name="worker_deleting_batch_success_message">
+        <item quantity="one">%d item was deleted.</item>
+        <item quantity="other">%d items were deleted.</item>
+    </plurals>
     <plurals name="worker_move_success_message">
         <item quantity="zero">Nothing was moved.</item>
         <item quantity="other">%s was moved!</item>
@@ -607,6 +614,8 @@
     <string name="trigger">Triggers</string>
     <string name="title_activity_trigger">Triggers</string>
     <string name="enabled">Enabled</string>
+    <string name="trigger_enabled_description">Trigger enabled</string>
+    <string name="trigger_disabled_description">Trigger disabled</string>
     <string name="trigger_name">Description</string>
     <string name="monday">Monday</string>
     <string name="tuesday">Tuesday</string>

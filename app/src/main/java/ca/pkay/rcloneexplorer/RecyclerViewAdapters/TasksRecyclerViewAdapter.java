@@ -27,6 +27,7 @@ import androidx.core.graphics.drawable.IconCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +38,9 @@ import ca.pkay.rcloneexplorer.Database.DatabaseHandler;
 import ca.pkay.rcloneexplorer.Items.RemoteItem;
 import ca.pkay.rcloneexplorer.Items.SyncDirectionObject;
 import ca.pkay.rcloneexplorer.Items.Task;
+import ca.pkay.rcloneexplorer.Items.Trigger;
 import ca.pkay.rcloneexplorer.R;
+import ca.pkay.rcloneexplorer.Services.TriggerService;
 import ca.pkay.rcloneexplorer.workmanager.SyncManager;
 import ca.pkay.rcloneexplorer.workmanager.SyncOperation;
 import es.dmoral.toasty.Toasty;
@@ -198,9 +201,7 @@ public class TasksRecyclerViewAdapter extends RecyclerView.Adapter<TasksRecycler
                     copyTask(task);
                     break;
                 case R.id.action_delete_task:
-                    new DatabaseHandler(context).deleteTask(task.getId());
-                    notifyDataSetChanged();
-                    removeItem(task);
+                    confirmDeleteTask(task);
                     break;
                 case R.id.action_copy_id_task:
                     String id = String.valueOf(task.getId());
@@ -220,6 +221,43 @@ public class TasksRecyclerViewAdapter extends RecyclerView.Adapter<TasksRecycler
             return true;
         });
         popupMenu.show();
+    }
+
+    private void confirmDeleteTask(Task task) {
+        new MaterialAlertDialogBuilder(context, R.style.RoundedCornersDialog)
+                .setTitle(context.getString(R.string.delete_task_title, task.getTitle()))
+                .setMessage(R.string.delete_task_message)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.delete, (dialog, which) -> deleteTask(task))
+                .show();
+    }
+
+    private void deleteTask(Task task) {
+        DatabaseHandler database = new DatabaseHandler(context);
+        TriggerService triggerService = new TriggerService(context);
+        for (Trigger trigger : database.getAllTrigger()) {
+            if (trigger.getTriggerTarget() == task.getId()) {
+                triggerService.cancelTrigger(trigger.getId());
+                database.deleteTrigger(trigger.getId());
+            }
+        }
+        for (Task otherTask : database.getAllTasks()) {
+            boolean changed = false;
+            if (task.getId() == otherTask.getOnFailFollowup()) {
+                otherTask.setOnFailFollowup(-1L);
+                changed = true;
+            }
+            if (task.getId() == otherTask.getOnSuccessFollowup()) {
+                otherTask.setOnSuccessFollowup(-1L);
+                changed = true;
+            }
+            if (changed) {
+                database.updateTask(otherTask);
+            }
+        }
+        new SyncManager(context).cancel(String.valueOf(task.getId()));
+        database.deleteTask(task.getId());
+        removeItem(task);
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

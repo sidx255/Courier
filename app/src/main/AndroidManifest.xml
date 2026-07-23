@@ -114,7 +114,7 @@
             android:foregroundServiceType="dataSync" />
         <service
             android:name=".Services.TriggerService"
-            android:exported="true"
+            android:exported="false"
             android:foregroundServiceType="dataSync" />
         <service
             android:name=".Services.RcdService"
@@ -140,7 +140,7 @@
         </receiver>
         <receiver
             android:name=".BroadcastReceivers.TriggerReciever"
-            android:exported="true" />
+            android:exported="false" />
         <receiver
             android:name=".BroadcastReceivers.ClearReportBroadcastReciever"
             android:exported="false" />

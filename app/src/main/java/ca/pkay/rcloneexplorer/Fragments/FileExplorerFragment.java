@@ -1463,10 +1463,17 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
                 .setNegativeButton(getResources().getString(R.string.cancel), null)
                 .setPositiveButton(getResources().getString(R.string.delete), (dialog, which) -> {
                     recyclerViewAdapter.cancelSelection();
-                    for (FileItem deleteItem : deleteList) {
-                        EphemeralTaskManager.Companion.queueDelete(this.context, remote, deleteItem, directoryObject.getCurrentPath());
+                    boolean queued = EphemeralTaskManager.queueDeleteBatch(
+                            this.context,
+                            remote,
+                            deleteList,
+                            directoryObject.getCurrentPath()
+                    );
+                    if (queued) {
+                        Toasty.info(context, getString(R.string.deleting_info), Toast.LENGTH_SHORT, true).show();
+                    } else {
+                        Toasty.error(context, getString(R.string.worker_deleting_failed), Toast.LENGTH_SHORT, true).show();
                     }
-                    Toasty.info(context, getString(R.string.deleting_info), Toast.LENGTH_SHORT, true).show();
                 });
         if(deleteList.size() == 1) {
             builder.setMessage(getString(R.string.name_will_be_deleted, deleteList.get(0).getName()));

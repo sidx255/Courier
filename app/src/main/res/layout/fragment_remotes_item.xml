@@ -50,8 +50,8 @@
 
         <ImageButton
             android:id="@+id/remote_options"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/file_options_content_description"
             android:src="@drawable/ic_more_vert"
