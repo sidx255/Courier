@@ -70,6 +70,7 @@ class FilterActivity : AppCompatActivity() {
                             this.resources.getString(R.string.filteractivity_filter_not_found)
                     ).show()
                     finish()
+                    return
                 }
             }
         }

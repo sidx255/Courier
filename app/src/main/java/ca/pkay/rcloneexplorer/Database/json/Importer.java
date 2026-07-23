@@ -12,6 +12,7 @@ import ca.pkay.rcloneexplorer.Database.DatabaseHandler;
 import ca.pkay.rcloneexplorer.Items.Filter;
 import ca.pkay.rcloneexplorer.Items.Task;
 import ca.pkay.rcloneexplorer.Items.Trigger;
+import ca.pkay.rcloneexplorer.Services.TriggerService;
 
 public class Importer {
 
@@ -22,6 +23,16 @@ public class Importer {
         ArrayList<Task> tasks = createTasklist(json);
 
         DatabaseHandler dbHandler = new DatabaseHandler(context);
+        TriggerService triggerService = new TriggerService(context);
+
+        // Cancel the exact alarms of every trigger that is about to be wiped. Otherwise their
+        // alarms stay scheduled with no matching row (orphans), and because trigger IDs are
+        // reusable SQLite ROWIDs an imported trigger can inherit an old ID and be fired at the
+        // stale alarm's time, launching the wrong task.
+        for (Trigger existing : dbHandler.getAllTrigger()) {
+            triggerService.cancelTrigger(existing.getId());
+        }
+
         dbHandler.deleteEveryting();
         for(Trigger trigger : triggers){
             dbHandler.createTrigger(trigger, true);
@@ -32,6 +43,10 @@ public class Importer {
         for(Task task : tasks){
             dbHandler.createTask(task, true);
         }
+
+        // Arm the freshly imported triggers immediately so scheduled backups fire without
+        // waiting for the next app launch, boot, or time change.
+        triggerService.queueTrigger();
     }
 
     public static void validateJson(String json) throws JSONException {

@@ -98,8 +98,8 @@ class SyncManager(private var mContext: Context) {
         queue(taskID, operation, ExistingWorkPolicy.KEEP)
     }
 
-    fun queueFollowup(taskID: Long, requiresCharging: Boolean) {
-        queue(taskID, SyncOperation.TRANSFER, ExistingWorkPolicy.KEEP, requiresCharging, true)
+    fun queueFollowup(taskID: Long, requiresCharging: Boolean, followupDepth: Int = 1) {
+        queue(taskID, SyncOperation.TRANSFER, ExistingWorkPolicy.KEEP, requiresCharging, true, followupDepth)
     }
 
     private fun queue(
@@ -107,7 +107,8 @@ class SyncManager(private var mContext: Context) {
         operation: SyncOperation,
         policy: ExistingWorkPolicy,
         requiresCharging: Boolean = false,
-        runFollowups: Boolean = false
+        runFollowups: Boolean = false,
+        followupDepth: Int = 0
     ) {
         val requiresUnmetered = DatabaseHandler(mContext).getTask(taskID)?.wifionly == true
         val data = Data.Builder()
@@ -115,6 +116,7 @@ class SyncManager(private var mContext: Context) {
         data.putString(SyncWorker.TASK_OPERATION, operation.name)
         data.putBoolean(SyncWorker.TASK_REQUIRES_CHARGING, requiresCharging)
         data.putBoolean(SyncWorker.TASK_RUN_FOLLOWUPS, runFollowups)
+        data.putInt(SyncWorker.TASK_FOLLOWUP_DEPTH, followupDepth)
 
         val uploadWorkRequest = OneTimeWorkRequestBuilder<SyncWorker>()
             .setInputData(data.build())

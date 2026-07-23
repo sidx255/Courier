@@ -24,6 +24,15 @@ object RcloneErrorMapper {
     @JvmStatic
     fun map(context: Context, rawError: String?, fallback: String): UserError {
         val normalized = rawError.orEmpty().lowercase()
+        // A missing source root is permanent: retrying an rclone run against a folder that does
+        // not exist can never succeed, so surface a clear message with no misleading retry.
+        if (isSourceMissing(rawError)) {
+            return UserError(
+                context.getString(R.string.error_plain_source_missing),
+                Action.NONE,
+                0
+            )
+        }
         return when (classify(rawError)) {
             Action.EDIT_CONNECTION -> UserError(
                 context.getString(
@@ -66,6 +75,12 @@ object RcloneErrorMapper {
             )
             Action.UNKNOWN -> UserError(fallback, Action.RETRY, R.string.error_action_retry)
         }
+    }
+
+    fun isSourceMissing(rawError: String?): Boolean {
+        val normalized = rawError.orEmpty().lowercase()
+        return normalized.contains("error reading source root directory") ||
+                normalized.contains("directory not found")
     }
 
     fun classify(rawError: String?): Action {

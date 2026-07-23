@@ -230,15 +230,19 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
     }
 
     private fun acquireWakeLocks() {
-        val powerManager = mContext.getSystemService(Context.POWER_SERVICE) as PowerManager
-        mWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "EphemeralWorker::transfer").apply {
-            setReferenceCounted(false)
-            acquire(TimeUnit.HOURS.toMillis(6))
-        }
-        val wifiManager = mContext.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        mWifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "EphemeralWorker::wifi").apply {
-            setReferenceCounted(false)
-            acquire()
+        try {
+            val powerManager = mContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+            mWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "EphemeralWorker::transfer").apply {
+                setReferenceCounted(false)
+                acquire(TimeUnit.HOURS.toMillis(6))
+            }
+            val wifiManager = mContext.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            mWifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "EphemeralWorker::wifi").apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        } catch (e: Exception) {
+            FLog.e(tag(), "acquireWakeLocks: failed to acquire", e)
         }
     }
 

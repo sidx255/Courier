@@ -1,9 +1,23 @@
 package ca.pkay.rcloneexplorer.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RcloneErrorMapperTest {
+
+    @Test
+    fun detectsMissingSourceDirectory() {
+        assertTrue(
+            RcloneErrorMapper.isSourceMissing(
+                "Local file system at /storage/emulated/0/DCIM/Videocaptures - error reading source root directory: directory not found"
+            )
+        )
+        assertTrue(RcloneErrorMapper.isSourceMissing("directory not found"))
+        assertFalse(RcloneErrorMapper.isSourceMissing("3 files differ"))
+        assertFalse(RcloneErrorMapper.isSourceMissing(null))
+    }
 
     @Test
     fun mapsAuthenticationToConnectionEditing() {

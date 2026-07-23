@@ -156,6 +156,7 @@ public class TriggerRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
     }
 
     public void deleteTrigger(Trigger trigger) {
+        new TriggerService(context).cancelTrigger(trigger.getId());
         new DatabaseHandler(context).deleteTrigger(trigger.getId());
         int index = triggers.indexOf(trigger);
         if (index >= 0) {

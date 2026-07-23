@@ -95,6 +95,8 @@ public class TriggerService extends Service {
         );
         if(nextRunTime != null){
             scheduleExactAlarm(nextRunTime, getIntent(trigger.getId()));
+        } else {
+            cancelTrigger(trigger.getId());
         }
     }
 
@@ -106,6 +108,8 @@ public class TriggerService extends Service {
             long intervalMillis = (long) trigger.getTime() * 60 * 1000;
             long timeToTrigger = System.currentTimeMillis() + intervalMillis;
             scheduleExactAlarm(timeToTrigger, getIntent(trigger.getId()));
+        } else {
+            cancelTrigger(trigger.getId());
         }
     }
 

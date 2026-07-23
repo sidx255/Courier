@@ -50,9 +50,14 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         const val TASK_OPERATION = "TASK_OPERATION"
         const val TASK_REQUIRES_CHARGING = "TASK_REQUIRES_CHARGING"
         const val TASK_RUN_FOLLOWUPS = "TASK_RUN_FOLLOWUPS"
+        const val TASK_FOLLOWUP_DEPTH = "TASK_FOLLOWUP_DEPTH"
         private const val TAG = "SyncWorker"
         private const val SYNC_STALL_TIMEOUT_MS = 15 * 60 * 1000L
         private const val SYNC_STALL_CHECK_MS = 60 * 1000L
+        private const val NOTIFICATION_UPDATE_INTERVAL_MS = 1_000L
+        // Bound the length of onSuccess/onFail follow-up chains so a misconfigured cycle
+        // (task A -> task B -> task A) cannot queue itself forever and drain the battery.
+        private const val MAX_FOLLOWUP_DEPTH = 25
 
         //those Extras do not follow the above schema, because they are exposed to external applications
         //That means shorter values make it easier to use. There is no other technical reason
@@ -88,6 +93,8 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
     private var sRcloneProcess: Process? = null
     @Volatile private var lastSyncProgressAt = 0L
     @Volatile private var lastSyncBytes = -1L
+    private var lastNotificationUpdateAt = 0L
+    private var lastRcloneDiagnostic: String? = null
     private var lastExitCode: Int? = null
     private val statusObject = StatusObject(mContext)
     private var failureReason = FAILURE_REASON.NO_FAILURE
@@ -96,6 +103,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
     private val ongoingNotificationID = Random().nextInt()
     private val mRequiresCharging = inputData.getBoolean(TASK_REQUIRES_CHARGING, false)
     private val mRunFollowups = inputData.getBoolean(TASK_RUN_FOLLOWUPS, false)
+    private val mFollowupDepth = inputData.getInt(TASK_FOLLOWUP_DEPTH, 0)
 
     private var mWakeLock: PowerManager.WakeLock? = null
     private var mWifiLock: WifiManager.WifiLock? = null
@@ -429,16 +437,26 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
                             lastSyncProgressAt = System.currentTimeMillis()
                         }
 
-                        updateForegroundNotification(mNotificationManager.updateSyncNotification(
-                            title,
-                            statusObject.notificationContent,
-                            statusObject.notificationBigText,
-                            statusObject.notificationPercent,
-                            ongoingNotificationID
-                        ))
-                    } catch (e: JSONException) {
-                        FLog.e(TAG, "SyncService-Error: the offending line: $line")
-                        //FLog.e(TAG, "onHandleIntent: error reading json", e)
+                        val now = System.currentTimeMillis()
+                        if (NotificationUpdateGate.shouldUpdate(
+                                lastNotificationUpdateAt,
+                                now,
+                                NOTIFICATION_UPDATE_INTERVAL_MS
+                            )) {
+                            lastNotificationUpdateAt = now
+                            updateForegroundNotification(mNotificationManager.updateSyncNotification(
+                                title,
+                                statusObject.notificationContent,
+                                statusObject.notificationBigText,
+                                statusObject.notificationPercent,
+                                ongoingNotificationID
+                            ))
+                        }
+                    } catch (_: JSONException) {
+                        RcloneDiagnosticLine.extract(line)?.let { diagnostic ->
+                            lastRcloneDiagnostic = diagnostic
+                            FLog.e(TAG, "rclone: $diagnostic")
+                        }
                     }
                 }
             } catch (e: InterruptedIOException) {
@@ -658,14 +676,26 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
     private fun showFailNotification(notificationId: Int, content: String, wasCancelled: Boolean = false) {
         statusObject.printErrors()
         val errors = statusObject.getAllErrorMessages()
-        val userError = RcloneErrorMapper.map(mContext, errors.ifBlank { content }, content)
+        val diagnostic = buildString {
+            lastExitCode?.let { append(mContext.getString(R.string.rclone_diagnostic_exit_code, it)) }
+            lastRcloneDiagnostic?.let {
+                if (isNotEmpty()) append('\n')
+                append(mContext.getString(R.string.rclone_diagnostic_output, it))
+            }
+        }
+        val fallback = if (diagnostic.isBlank()) content else "$content\n$diagnostic"
+        val userError = RcloneErrorMapper.map(
+            mContext,
+            errors.ifBlank { diagnostic.ifBlank { content } },
+            fallback
+        )
         val text = userError.message
 
         var notifyTitle = mContext.getString(R.string.operation_failed)
         if (wasCancelled) {
             notifyTitle = mContext.getString(R.string.operation_failed_cancelled)
         }
-        SyncLog.error(mContext, notifyTitle, "$mTitle: $text")
+        SyncLog.error(mContext, notifyTitle, "$mTitle: $text${if (diagnostic.isBlank()) "" else "\n$diagnostic"}")
         mNotificationManager.showFailedNotificationOrReport(
             mTitle,
             text,
@@ -755,7 +785,12 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         if (followUpTaskID == null || followUpTaskID == -1L) {
             return
         }
+        // Stop self-referencing or runaway follow-up chains instead of looping forever.
+        if (followUpTaskID == mTask.id || mFollowupDepth >= MAX_FOLLOWUP_DEPTH) {
+            SyncLog.error(mContext, mTitle, getString(R.string.followup_chain_stopped))
+            return
+        }
         Thread.sleep(1000)
-        SyncManager(mContext).queueFollowup(followUpTaskID, mRequiresCharging)
+        SyncManager(mContext).queueFollowup(followUpTaskID, mRequiresCharging, mFollowupDepth + 1)
     }
 }
